@@ -1,0 +1,32 @@
+@startuml DB Model
+ 
+entity users {
+  + id : integer <<PK>>
+  --
+  username : varchar
+  password_hash : varchar
+}
+ 
+entity products {
+  + id : integer <<PK>>
+  --
+  user_id : integer <<FK>>
+  name : varchar
+  url : varchar
+  category : varchar
+  created_at : timestamp
+}
+ 
+entity price_entries {
+  + id : integer <<PK>>
+  --
+  product_id : integer <<FK>>
+  price : decimal
+  created_at : timestamp
+}
+ 
+' Relationships
+users ||--o{ products : "tracks"
+products ||--o{ price_entries : "has"
+ 
+@enduml
