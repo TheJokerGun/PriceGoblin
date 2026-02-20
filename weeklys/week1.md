@@ -1,11 +1,12 @@
 # Weekly Status Report: PriceGoblin
 
 ## ✅ Accomplished This Week
-*   **Project Inception**: Identified and finalized the project topic.
-*   **Proposal**: Wrote and submitted the project proposal.
-*   **Requirements**: Documented user stories.
-*   **Modeling**: Created the Use Case diagram.
+*   **Seperated into Frontend and Backend**: talked about fastapi structure
+*   **Seperated into Frontend and Backend**: Arthur started working on Frontend, Noah Started working on Backend
+*   **Set up Backend**: Set up all the needed backend files and requirments.
+*   **Rough code**: Created rough code structures for each file.
+*   **Did first scraping test url based**: Did first scraping tests on websites with Beautifulsoup and playwright as a fallback. 
+*   **Did first scraping test url based**: Did first POC test
 
 ## 📅 Planned for Next Week
-*   **System Design**: Begin architecture design.
-
+*   **System Design**: Begin architecture design
