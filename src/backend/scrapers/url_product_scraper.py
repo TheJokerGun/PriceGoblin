@@ -61,7 +61,7 @@ def scrape_with_playwright(url: str):
         # ✅ Wait for price element explicitly
         page.wait_for_selector('[data-test-id="product-price"]', timeout=10000)
 
-        price_element = page.locator('[data-test-id="product-price"]')
+        price_element = page.locator('div.text-h2[data-test-id="product-price"]').first
         price_text = price_element.inner_text()
 
         price = extract_price(price_text)
@@ -92,3 +92,4 @@ def scrape_product_data(url: str):
     return scrape_with_playwright(url)
 
 
+scrape_product_data("https://www.cyberport.de/gaming/gaming-notebooks/pdp/1CE8-075/ASUS-ROG-Xbox-Ally-X-RC73XA-NH011W-7--FHD-Touch-Ryzn-AI-Z2-Extreme-24GB-1TB-SSD-Win11-schwarz-Handheld.html")
