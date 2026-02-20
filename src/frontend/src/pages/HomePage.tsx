@@ -17,7 +17,7 @@ function HomePage() {
         url: url,
         category: null,
       };
-      const response = await api.post("/products", payload);
+      const response = await api.post("/scrape", payload);
       alert(`Product tracking started for: ${response.data.name}`);
       setUrl("");
     } catch (error) {
