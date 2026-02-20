@@ -4,6 +4,7 @@ import api from '../api/client';
 
 function HomePage() {
   const [url, setUrl] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleTrackProduct = async () => {
     if (!url.trim()) {
@@ -11,11 +12,12 @@ function HomePage() {
       return;
     }
 
+    setIsLoading(true);
     try {
       const payload = {
-        name: null,
+        name: "",
         url: url,
-        category: null,
+        category: "",
       };
       const response = await api.post("/scrape", payload);
       alert(`Product tracking started for: ${response.data.name}`);
@@ -23,6 +25,8 @@ function HomePage() {
     } catch (error) {
       console.error("Error tracking product:", error);
       alert("Failed to track product. Check console for details.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -44,9 +48,9 @@ function HomePage() {
         />
         <button
           onClick={handleTrackProduct}
-          className="bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition"
-        >
-          Track Product
+          disabled={isLoading}
+          className={`bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}>
+          {isLoading ? "Tracking..." : "Track Product"}
         </button>
       </div>
     </div>
