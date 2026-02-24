@@ -91,5 +91,3 @@ def scrape_product_data(url: str):
     print("Falling back to Playwright...")
     return scrape_with_playwright(url)
 
-
-scrape_product_data("https://www.cyberport.de/gaming/gaming-notebooks/pdp/1CE8-075/ASUS-ROG-Xbox-Ally-X-RC73XA-NH011W-7--FHD-Touch-Ryzn-AI-Z2-Extreme-24GB-1TB-SSD-Win11-schwarz-Handheld.html")
