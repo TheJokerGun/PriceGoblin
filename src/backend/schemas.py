@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 
 
 # -------- AUTH --------
@@ -42,3 +42,10 @@ class PriceResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+# -------- SCRAPER --------
+
+class ScrapeRequest(BaseModel):
+    name: str | None = None
+    url: str | None = None
+    category: str | None = None

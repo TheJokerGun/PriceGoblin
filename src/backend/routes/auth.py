@@ -4,7 +4,7 @@ from database import SessionLocal
 from schemas import LoginRequest, TokenResponse
 from services import auth_service
 
-router = APIRouter(prefix="/auth", tags=["Auth"])
+router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 
 def get_db():
@@ -20,3 +20,5 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     user = auth_service.login_user(db, request.email)
     token = auth_service.create_access_token(user)
     return {"access_token": token}
+
+#TODO: Look into token type bearer and how the jwt token works

@@ -1,15 +1,11 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from schemas import ScrapeRequest
 from ..scrapers.url_product_scraper import scrape_product_data
 from ..scrapers.category_product_scraper import CategoryScraper
 from datetime import datetime, timezone
 
 router = APIRouter(prefix="/api/scrape", tags=["Scraping"])
 
-class ScrapeRequest(BaseModel):
-    name: str | None = None
-    url: str | None = None
-    category: str | None = None
 
 @router.post("/")
 def scrape(request: ScrapeRequest):
