@@ -9,6 +9,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
     products = relationship("Product", back_populates="owner")
@@ -19,7 +20,9 @@ class Product(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
+    url = Column(String, nullable=True)
     category = Column(String, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
     owner = relationship("User", back_populates="products")

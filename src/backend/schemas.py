@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from pydantic import ConfigDict
 from datetime import datetime
 from typing import Optional
 
@@ -7,11 +8,17 @@ from typing import Optional
 
 class LoginRequest(BaseModel):
     email: str
+    password: str
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
 
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str
 
 
 # -------- PRODUCTS --------
@@ -29,8 +36,7 @@ class ProductResponse(BaseModel):
     category: Optional[str]
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # -------- PRICES --------
@@ -40,8 +46,7 @@ class PriceResponse(BaseModel):
     price: float
     checked_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # -------- SCRAPER --------
 
