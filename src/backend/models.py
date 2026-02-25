@@ -19,14 +19,10 @@ class Product(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
-    url = Column(String, nullable=True)
     category = Column(String, nullable=True)
-    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
-    user_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User", back_populates="products")
-
     prices = relationship("PriceEntry", back_populates="product")
 
 
@@ -36,6 +32,16 @@ class PriceEntry(Base):
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"))
     price = Column(Float)
-    checked_at = Column(DateTime, default=datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
     product = relationship("Product", back_populates="prices")
+
+class Tracking(Base):
+    __tablename__ = "tracking"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    product_id = Column(Integer, ForeignKey("products.id"))
+    is_active = Column(Boolean, default=True)
+    url = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))

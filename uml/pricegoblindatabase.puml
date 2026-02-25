@@ -1,0 +1,42 @@
+@startuml
+' Entity Relationship Diagram generated from DBML
+
+entity "users" as users {
+  + id : integer <<PK>>
+  --
+  email : varchar
+  created_at : timestamp
+}
+
+entity "products" as products {
+  + id : integer <<PK>>
+  --
+  name : varchar
+  category : varchar
+  created_at : timestamp
+}
+
+entity "tracking" as tracking {
+  + id : integer <<PK>>
+  --
+  user_id : integer
+  product_id : integer
+  is_active : bool
+  url : varchar
+  created_at : timestamp
+}
+
+entity "price_entries" as price_entries {
+  + id : integer <<PK>>
+  --
+  product_id : integer
+  price : float
+  created_at : timestamp
+}
+
+' Relationships
+users ||..o{ tracking : tracks
+products ||..o{ tracking : has
+products ||..o{ price_entries : priced in
+
+@enduml
