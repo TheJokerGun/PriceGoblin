@@ -5,6 +5,7 @@ entity "users" as users {
   + id : integer <<PK>>
   --
   email : varchar
+  password_hash : varchar
   created_at : timestamp
 }
 
