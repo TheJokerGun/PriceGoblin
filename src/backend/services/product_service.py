@@ -1,8 +1,10 @@
 from typing import List
 
 from sqlalchemy.orm import Session
-from models import PriceEntry, Product
+from ..models import PriceEntry, Product
 from datetime import datetime, timezone
+import random
+from ..scrapers.url_product_scraper import scrape_product_data
 
 def create_product(db: Session, user_id: int, data) -> Product:
     product = Product(
@@ -12,7 +14,6 @@ def create_product(db: Session, user_id: int, data) -> Product:
         user_id=user_id,
         created_at=datetime.now(timezone.utc)
     )
-    #TODO: add product id, getting it from db prolly, depends on how we build the db
     db.add(product)
     db.commit()
     db.refresh(product)
@@ -21,38 +22,48 @@ def create_product(db: Session, user_id: int, data) -> Product:
 
 def get_user_products(db: Session, user_id: int) -> List[Product]:
     return db.query(Product).filter(Product.user_id == user_id).all()
-    #TODO: Check what all means
 
 
-def get_product_by_id(db: Session, user_id: int, product_id: int) -> Product:
+def get_product_by_id(db: Session, user_id: int, product_id: int) -> Product | None:
     return db.query(Product).filter(
         Product.id == product_id,
         Product.user_id == user_id
     ).first()
 
 
-def delete_product(db: Session, product) -> None:
+def delete_product(db: Session, user_id: int, product_id: int) -> bool:
+    product = get_product_by_id(db, user_id, product_id)
+    if not product:
+        return False
     db.delete(product)
     db.commit()
+    return True
 
-def get_product_prices(db: Session, product_id: int) -> List[PriceEntry]:
+def get_product_prices(db: Session, user_id: int, product_id: int) -> List[PriceEntry] | None:
+    product = get_product_by_id(db, user_id, product_id)
+    if not product:
+        return None
+
     return db.query(PriceEntry).filter(
         PriceEntry.product_id == product_id
     ).all()
 
-def check_product_price(db: Session, product) -> PriceEntry:
+def check_product_price(db: Session, user_id: int, product_id: int) -> PriceEntry | None:
+    product = get_product_by_id(db, user_id, product_id)
+    if not product:
+        return None
 
-    product = get_product_by_id(db, product.user_id, product.id)
+    scraped_price: float | None = None
+    if product.url:
+        scraped_data = scrape_product_data(product.url)
+        if scraped_data and isinstance(scraped_data.get("price"), (int, float)):
+            scraped_price = float(scraped_data["price"])
 
-
-    # TODO: Replace with real scraping logic
-    fake_price = round(random.uniform(10, 500), 2)
-
-    #TODO: Pull the infos of the productID 
+    price = scraped_price if scraped_price is not None else round(random.uniform(10, 500), 2)
 
     entry = PriceEntry(
         product_id=product.id,
-        price=fake_price
+        price=price
     )
 
     db.add(entry)

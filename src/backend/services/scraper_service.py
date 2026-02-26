@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from schemas import ScrapeRequest
+from ..schemas import ScrapeRequest
 from ..scrapers.url_product_scraper import scrape_product_data
 from ..scrapers.category_product_scraper import CategoryScraper
 from datetime import datetime, timezone
@@ -16,11 +16,12 @@ def scrape(request: ScrapeRequest):
             raise HTTPException(status_code=400, detail="Failed to scrape product")
 
         return {
-        "id": 1,
-        "name": result["name"],
-        "url": result.get("url"),
-        "category": None,
-        "created_at": current_time
+            "id": 1,
+            "name": result["name"],
+            "url": result.get("url", request.url),
+            "category": None,
+            "created_at": current_time,
+            "price": result.get("price")
         }
 
     # Case 2: Category scraping

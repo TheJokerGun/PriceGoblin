@@ -15,7 +15,7 @@ HEADERS = {
 
 
 
-def extract_price(text: str):
+def extract_price(text: str) -> float | None:
     match = re.search(r"(\d+[.,]\d{2})", text)
     if match:
         return float(match.group(1).replace(",", "."))
@@ -24,7 +24,10 @@ def extract_price(text: str):
 
 def scrape_with_bs4(url: str):
     session = requests.Session()
-    response = session.get(url, headers=HEADERS, timeout=15)
+    try:
+        response = session.get(url, headers=HEADERS, timeout=15)
+    except requests.RequestException:
+        return None
 
     if response.status_code != 200:
         return None
@@ -49,45 +52,43 @@ def scrape_with_bs4(url: str):
 
 
 def scrape_with_playwright(url: str):
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        page = browser.new_page()
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
 
-        page.goto(url, timeout=60000)
-        page.wait_for_load_state("networkidle")
+            page.goto(url, timeout=60000)
+            page.wait_for_load_state("networkidle")
 
-        title = page.title()
+            title = page.title()
 
-        # ✅ Wait for price element explicitly
-        page.wait_for_selector('[data-test-id="product-price"]', timeout=10000)
+            page.wait_for_selector('[data-test-id="product-price"]', timeout=10000)
 
-        price_element = page.locator('div.text-h2[data-test-id="product-price"]').first
-        price_text = price_element.inner_text()
+            price_element = page.locator('div.text-h2[data-test-id="product-price"]').first
+            price_text = price_element.inner_text()
 
-        price = extract_price(price_text)
+            price = extract_price(price_text)
 
-        browser.close()
+            browser.close()
 
-        if not price:
-            return None
+            if not price:
+                return None
 
-        return {
-            "name": title,
-            "price": price,
-            url: url
-        }
+            return {
+                "name": title,
+                "price": price,
+                "url": url
+            }
+    except Exception:
+        return None
 
 
 
 def scrape_product_data(url: str):
-    # 1️⃣ Try BeautifulSoup first
     result = scrape_with_bs4(url)
 
     if result:
-        print("Used BeautifulSoup")
+        result.setdefault("url", url)
         return result
 
-    # 2️⃣ Fallback to Playwright
-    print("Falling back to Playwright...")
     return scrape_with_playwright(url)
-

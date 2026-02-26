@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.backend.routes.scraper import router as scrape_router
+from src.backend.routes.auth import router as auth_router
+from src.backend.routes.products import router as products_router
 
 app = FastAPI()
 
@@ -14,3 +16,5 @@ app.add_middleware(
 )
 
 app.include_router(scrape_router)
+app.include_router(auth_router)
+app.include_router(products_router)

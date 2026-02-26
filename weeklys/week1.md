@@ -9,4 +9,4 @@
 *   **Did first scraping test url based**: Did first POC test
 
 ## 📅 Planned for Next Week
-*   **System Design**: Set Up other endpoints in the backend and structure it properly
+*   **Backend API Progress**: Implement authentication flow (email + password, hashing, JWT) and connect product endpoints to auth + database logic.
