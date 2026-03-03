@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import api from '../api/client';
+import api from "../api/client";
 
 interface Product {
   id: number;
@@ -31,12 +31,13 @@ function HomePage() {
     }
   };
 
-  useEffect(() => {1
+  useEffect(() => {
+    1;
     fetchProducts();
   }, []);
 
   useEffect(() => {
-    const CACHE_KEY = 'product_price_cache';
+    const CACHE_KEY = "product_price_cache";
     const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
     const now = Date.now();
     const cachedData = localStorage.getItem(CACHE_KEY);
@@ -44,17 +45,31 @@ function HomePage() {
 
     products.forEach((product) => {
       const cachedItem = cache[product.id];
-      if (cachedItem && (now - cachedItem.timestamp < CACHE_DURATION)) {
+      if (cachedItem && now - cachedItem.timestamp < CACHE_DURATION) {
         setPrices((prev) => ({ ...prev, [product.id]: cachedItem.price }));
       } else {
-        api.post(`/products/${product.id}/check-price`)
+        api
+          .post(`/products/${product.id}/check-price`)
           .then((response) => {
-            setPrices((prev) => ({ ...prev, [product.id]: response.data.price }));
-            const currentCache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
-            currentCache[product.id] = { price: response.data.price, timestamp: Date.now() };
+            setPrices((prev) => ({
+              ...prev,
+              [product.id]: response.data.price,
+            }));
+            const currentCache = JSON.parse(
+              localStorage.getItem(CACHE_KEY) || "{}",
+            );
+            currentCache[product.id] = {
+              price: response.data.price,
+              timestamp: Date.now(),
+            };
             localStorage.setItem(CACHE_KEY, JSON.stringify(currentCache));
           })
-          .catch((err) => console.error(`Error fetching price for product ${product.id}:`, err));
+          .catch((err) =>
+            console.error(
+              `Error fetching price for product ${product.id}:`,
+              err,
+            ),
+          );
       }
     });
   }, [products]);
@@ -95,7 +110,9 @@ function HomePage() {
   return (
     <div className="container mx-auto p-4">
       <div className="w-full max-w-md mx-auto flex flex-col gap-4 mb-8">
-        <h2 className="text-2xl font-bold text-center text-white">Track a New Product</h2>
+        <h2 className="text-2xl font-bold text-center text-white">
+          Track a New Product
+        </h2>
         <input
           type="text"
           placeholder="Enter product URL to track"
@@ -106,25 +123,46 @@ function HomePage() {
         <button
           onClick={handleTrackProduct}
           disabled={isTracking}
-          className={`bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition ${isTracking ? "opacity-50 cursor-not-allowed" : ""}`}>
+          className={`bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition ${isTracking ? "opacity-50 cursor-not-allowed" : ""}`}
+        >
           {isTracking ? "Tracking..." : "Track Product"}
         </button>
       </div>
 
       <div>
-        <h2 className="text-2xl font-bold mb-4 text-white">Your Tracked Products</h2>
+        <h2 className="text-2xl font-bold mb-4 text-white">
+          Your Tracked Products
+        </h2>
         {isProductsLoading && <p>Loading products...</p>}
         {error && <p className="text-red-500">{error}</p>}
-        {!isProductsLoading && !error && products.length === 0 && <p>You are not tracking any products yet.</p>}
+        {!isProductsLoading && !error && products.length === 0 && (
+          <p>You are not tracking any products yet.</p>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map(product => (
-            <Link to={`/products/${product.id}`} key={product.id} className="bg-purple-950 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow block border-2 border-gray-400">
-              <h3 className="font-bold text-lg truncate text-gray-300" title={product.name}>{product.name}</h3>
+          {products.map((product) => (
+            <Link
+              to={`/productinfo?id=${product.id}`}
+              key={product.id}
+              className="bg-purple-950 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow block border-2 border-gray-400"
+            >
+              <h3
+                className="font-bold text-lg truncate text-gray-300"
+                title={product.name}
+              >
+                {product.name}
+              </h3>
               {prices[product.id] !== undefined && (
-                <p className="text-green-500 font-bold mt-2">Price: {prices[product.id]}</p>
+                <p className="text-green-500 font-bold mt-2">
+                  Price: {prices[product.id]}
+                </p>
               )}
-              <p className="text-gray-400 text-sm break-all">{getDomain(product.url)}</p>
-              <p className="text-gray-400 text-xs mt-2">Tracked since: {new Date(product.created_at).toLocaleDateString()}</p>
+              <p className="text-gray-400 text-sm break-all">
+                {getDomain(product.url)}
+              </p>
+              <p className="text-gray-400 text-xs mt-2">
+                Tracked since:{" "}
+                {new Date(product.created_at).toLocaleDateString()}
+              </p>
             </Link>
           ))}
         </div>
