@@ -1,7 +1,6 @@
-from pydantic import BaseModel
-from pydantic import ConfigDict
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 
 # -------- AUTH --------
@@ -54,3 +53,30 @@ class ScrapeRequest(BaseModel):
     name: str | None = None
     url: str | None = None
     category: str | None = None
+
+
+class ScrapeProductResponse(BaseModel):
+    type: Literal["product"] = "product"
+    id: int = 1
+    name: str
+    url: str
+    category: str | None = None
+    created_at: datetime
+    price: float | None = None
+
+
+class ScrapeCategoryItem(BaseModel):
+    name: str
+    price: str | float | None = None
+    source: str | None = None
+    url: str | None = None
+
+
+class ScrapeCategoryResponse(BaseModel):
+    type: Literal["category"] = "category"
+    category: str
+    count: int
+    data: list[ScrapeCategoryItem]
+
+
+ScrapeResponse = ScrapeProductResponse | ScrapeCategoryResponse

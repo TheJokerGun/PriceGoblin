@@ -2,17 +2,19 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 from typing import Generator
 from pathlib import Path
+import os
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_DIR = PROJECT_ROOT / "db"
 DB_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DB_DIR / "pricegoblin.db"
 DATABASE_URL = f"sqlite:///{DB_PATH}"
+SQL_ECHO = os.getenv("SQL_ECHO", "false").lower() in {"1", "true", "yes", "on"}
 
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},
-    echo=True
+    echo=SQL_ECHO
 )
 
 SessionLocal = sessionmaker(

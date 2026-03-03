@@ -5,6 +5,52 @@
 - API prefix: `/api`
 - Content type: `application/json`
 - Date/time fields: ISO-8601 timestamps (UTC)
+- Database engine: SQLite (`db/pricegoblin.db`)
+
+## Database Schema (Current)
+
+### Tables
+
+#### `users`
+- `id` (INTEGER, PK, indexed)
+- `email` (TEXT, unique, indexed, required)
+- `password_hash` (TEXT, required)
+- `created_at` (DATETIME with timezone intent, required)
+
+#### `products`
+- `id` (INTEGER, PK, indexed)
+- `name` (TEXT, nullable)
+- `url` (TEXT, nullable)
+- `category` (TEXT, nullable)
+- `user_id` (INTEGER, FK -> `users.id`, required)
+- `created_at` (DATETIME with timezone intent, required)
+
+#### `price_entries`
+- `id` (INTEGER, PK, indexed)
+- `product_id` (INTEGER, FK -> `products.id`, required)
+- `price` (FLOAT, required)
+- `created_at` (DATETIME with timezone intent, required)
+
+#### `tracking`
+- `id` (INTEGER, PK, indexed)
+- `user_id` (INTEGER, FK -> `users.id`, required)
+- `product_id` (INTEGER, FK -> `products.id`, required)
+- `is_active` (BOOLEAN, default: `true`)
+- `url` (TEXT, nullable)
+- `created_at` (DATETIME with timezone intent, required)
+
+### Relationships
+- One `users` row can have many `products` rows (`products.user_id`).
+- One `products` row can have many `price_entries` rows (`price_entries.product_id`).
+- `tracking` links `users` and `products` for tracking state.
+
+### Date/Time Storage and Delivery
+- Timestamps are generated in backend code with `datetime.now(timezone.utc)`.
+- SQLAlchemy columns use `DateTime(timezone=True)` for all `created_at` fields.
+- In API responses, datetime values are serialized as ISO-8601 UTC strings, e.g.:
+  - `2026-03-03T11:15:45.000000+00:00`
+- Field mapping note:
+  - `PriceResponse.checked_at` is sourced from DB column `price_entries.created_at`.
 
 ## Auth Model
 - JWT bearer token is returned by login/register.
@@ -237,6 +283,7 @@ Request (category mode):
 
 Rules:
 - Provide exactly one of `url` or `category`.
+- For category mode, `name` is used as the search query term.
 
 Success `200` (url mode):
 ```json
@@ -258,8 +305,18 @@ Success `200` (category mode):
   "category": "graphics-cards",
   "count": 2,
   "data": [
-    { "name": "GPU A", "price": "499,99 €" },
-    { "name": "GPU B", "price": 529.99 }
+    {
+      "name": "GPU A",
+      "price": "499,99 €",
+      "source": "idealo",
+      "url": "https://example.com/product-a"
+    },
+    {
+      "name": "GPU B",
+      "price": 529.99,
+      "source": "geizhals",
+      "url": "https://example.com/product-b"
+    }
   ]
 }
 ```

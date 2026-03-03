@@ -28,8 +28,6 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
 
 
 def register_user(db: Session, email: str, password: str) -> User:
-    if not email.endswith("@my.dbb-lippe.de"):
-        raise HTTPException(status_code=400, detail="Invalid email domain")
 
     user = db.query(User).filter(User.email == email).first()
 

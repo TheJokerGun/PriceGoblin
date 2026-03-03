@@ -1,88 +1,197 @@
-# scrapers/category_scraper.py
+import logging
+from dataclasses import dataclass
+from urllib.parse import quote_plus
 
-from playwright.sync_api import sync_playwright
+import requests
+from bs4 import BeautifulSoup
+
+from ..logging_utils import configure_logging, format_exception_detail, log_event
+
+logger = configure_logging()
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/121.0.0.0 Safari/537.36",
+    "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+}
+
+
+@dataclass(frozen=True)
+class ProviderConfig:
+    name: str
+    search_url_template: str
+    item_selector: str
+    title_selector: str
+    price_selector: str
+
+
+CATEGORY_PROVIDERS: dict[str, list[ProviderConfig]] = {
+    "general": [
+        ProviderConfig(
+            name="idealo",
+            search_url_template="https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q={query}",
+            item_selector=".offerList-item, .sr-resultItem, article, .result",
+            title_selector=".offerList-item-description-title, .sr-resultItem__title, h2, h3, a",
+            price_selector=".offerList-item-price, .sr-detailedPriceInfo__price, .price, [itemprop='price']",
+        ),
+        ProviderConfig(
+            name="geizhals",
+            search_url_template="https://geizhals.de/?fs={query}",
+            item_selector=".row.productlist__product, .gh-list__item, article, .result",
+            title_selector=".productlist__link, .gh-list__title, h2, h3, a",
+            price_selector=".gh_price, .productlist__price, .price, [itemprop='price']",
+        ),
+    ],
+    "steam": [
+        ProviderConfig(
+            name="steam",
+            search_url_template="https://store.steampowered.com/search/?term={query}",
+            item_selector="a.search_result_row, .search_result_row",
+            title_selector=".title, span.title",
+            price_selector=".search_price, .discount_final_price, .discount_original_price",
+        ),
+        ProviderConfig(
+            name="steamkeys",
+            search_url_template="https://www.steamkeys.com/?s={query}&post_type=product",
+            item_selector=".product, li.product, article, .item",
+            title_selector="h2, .woocommerce-loop-product__title, .title, a",
+            price_selector=".price, .amount, [itemprop='price']",
+        ),
+    ],
+    "cards": [
+        ProviderConfig(
+            name="cardmarket-pokemon",
+            search_url_template="https://www.cardmarket.com/en/Pokemon/Products/Singles?searchString={query}",
+            item_selector=".table-body .row, .product-row, article, .result",
+            title_selector=".col-product a, .product-name, h2, h3, a",
+            price_selector=".col-price, .price-container, .price, [itemprop='price']",
+        ),
+        ProviderConfig(
+            name="cardmarket-yugioh",
+            search_url_template="https://www.cardmarket.com/en/YuGiOh/Products/Singles?searchString={query}",
+            item_selector=".table-body .row, .product-row, article, .result",
+            title_selector=".col-product a, .product-name, h2, h3, a",
+            price_selector=".col-price, .price-container, .price, [itemprop='price']",
+        ),
+    ],
+}
 
 
 class CategoryScraper:
+    def scrape(self, category: str, query: str | None = None) -> list[dict]:
+        category = category.lower().strip()
+        query = (query or "").strip()
 
-    def scrape(self, category: str) -> list[dict]:
-        """
-        Main entry point.
-        Decides which category logic to use.
-        """
+        log_event(
+            logger,
+            logging.INFO,
+            "scrape.category.started",
+            category=category,
+            query=query or None,
+        )
 
-        category = category.lower()
+        providers = CATEGORY_PROVIDERS.get(category)
+        if not providers:
+            log_event(
+                logger,
+                logging.WARNING,
+                "scrape.category.unsupported",
+                category=category,
+                supported=list(CATEGORY_PROVIDERS.keys()),
+            )
+            return []
 
-        if category == "cards":
-            return self._scrape_cards()
+        if not query:
+            # Structure-first behavior: category exists but no concrete search term yet.
+            return [
+                {
+                    "name": f"{category} search requires a query",
+                    "price": None,
+                    "source": provider.name,
+                    "url": provider.search_url_template.format(query="<query>"),
+                }
+                for provider in providers
+            ]
 
-        elif category == "games":
-            return self._scrape_games()
+        all_results: list[dict] = []
+        for provider in providers:
+            provider_results = self._scrape_provider(provider, query)
+            all_results.extend(provider_results)
 
-        else:
-            return self._scrape_general(category)
+        log_event(
+            logger,
+            logging.INFO,
+            "scrape.category.completed",
+            category=category,
+            query=query,
+            count=len(all_results),
+        )
+        return all_results
 
+    def _scrape_provider(self, provider: ProviderConfig, query: str) -> list[dict]:
+        target_url = provider.search_url_template.format(query=quote_plus(query))
+        products: list[dict] = []
 
-    def _scrape_cards(self) -> list[dict]:
-        """
-        Scrapes trading card category pages.
-        Returns list of products.
-        """
+        try:
+            response = requests.get(target_url, headers=HEADERS, timeout=20)
+            if response.status_code != 200:
+                log_event(
+                    logger,
+                    logging.WARNING,
+                    "scrape.category.provider.non_200",
+                    provider=provider.name,
+                    url=target_url,
+                    status_code=response.status_code,
+                )
+                return []
 
-        url = "https://example.com/cards"
+            soup = BeautifulSoup(response.text, "lxml")
+            rows = soup.select(provider.item_selector)
+            if not rows:
+                log_event(
+                    logger,
+                    logging.INFO,
+                    "scrape.category.provider.no_results",
+                    provider=provider.name,
+                    url=target_url,
+                )
+                return []
 
-        return self._scrape_category_page(url)
+            for row in rows[:10]:
+                title_node = row.select_one(provider.title_selector)
+                if not title_node:
+                    continue
 
+                raw_name = title_node.get_text(" ", strip=True)
+                if not raw_name:
+                    continue
 
-    def _scrape_games(self) -> list[dict]:
-        """
-        Scrapes games category.
-        """
+                price_node = row.select_one(provider.price_selector)
+                raw_price = price_node.get_text(" ", strip=True) if price_node else None
 
-        url = "https://example.com/games"
+                link = title_node.get("href") if hasattr(title_node, "get") else None
+                if link and link.startswith("/"):
+                    link = f"https://{target_url.split('/')[2]}{link}"
 
-        return self._scrape_category_page(url)
+                products.append(
+                    {
+                        "name": raw_name,
+                        "price": raw_price,
+                        "source": provider.name,
+                        "url": link or target_url,
+                    }
+                )
 
-
-    def _scrape_general(self, category: str) -> list[dict]:
-        """
-        Fallback category scraping.
-        """
-
-        url = f"https://example.com/{category}"
-
-        return self._scrape_category_page(url)
-
-
-    def _scrape_category_page(self, url: str) -> list[dict]:
-        """
-        Generic category page scraping logic.
-        """
-
-        products = []
-
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
-
-            page.goto(url, timeout=60000)
-            page.wait_for_load_state("networkidle")
-
-            product_elements = page.locator(".product-card")
-
-            count = product_elements.count()
-
-            for i in range(count):
-                element = product_elements.nth(i)
-
-                name = element.locator(".product-title").inner_text()
-                price_text = element.locator(".product-price").inner_text()
-
-                products.append({
-                    "name": name,
-                    "price": price_text,
-                })
-
-            browser.close()
-
-        return products
+            return products
+        except Exception as exc:
+            log_event(
+                logger,
+                logging.WARNING,
+                "scrape.category.provider.failed",
+                provider=provider.name,
+                url=target_url,
+                error_type=type(exc).__name__,
+                detail=format_exception_detail(exc),
+            )
+            return []
