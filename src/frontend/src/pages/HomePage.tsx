@@ -1,14 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/client";
-
-interface Product {
-  id: number;
-  name: string;
-  url: string;
-  category: string | null;
-  created_at: string;
-}
+import type { Product } from "../types";
 
 function HomePage() {
   const [url, setUrl] = useState("");

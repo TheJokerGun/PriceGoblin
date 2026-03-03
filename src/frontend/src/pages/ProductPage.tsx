@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
+import type { Product, Price } from "../types";
 import api from "../api/client";
 import {
   LineChart,
@@ -11,20 +12,6 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-
-interface Product {
-  id: number;
-  name: string;
-  url: string;
-  category: string | null;
-  created_at: string;
-}
-
-interface Price {
-  id: number;
-  price: number;
-  checked_at: string;
-}
 
 const ProductPage = () => {
   const [searchParams] = useSearchParams();
