@@ -35,6 +35,19 @@ const LoginPage = () => {
     }
   };
 
+  const handleRegister = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      const response = await api.post('/auth/register', { 'email': email, 'password': password });
+      login(response.data.access_token);
+    } catch (err) {
+      console.error(err);
+      setError('Registration failed. Please try again.');
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-green-900 px-4">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
@@ -61,12 +74,21 @@ const LoginPage = () => {
               required
             />
           </div>
-          <button
-            type="submit"
-            className="bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition duration-200"
-          >
-            Log In
-          </button>
+          <div className="flex gap-4">
+            <button
+              type="submit"
+              className="flex-1 bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition duration-200"
+            >
+              Log In
+            </button>
+            <button
+              type="button"
+              onClick={handleRegister}
+              className="flex-1 bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition duration-200"
+            >
+              Register
+            </button>
+          </div>
         </form>
       </div>
     </div>
