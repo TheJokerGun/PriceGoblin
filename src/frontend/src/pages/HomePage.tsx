@@ -10,6 +10,7 @@ function HomePage() {
   const [isProductsLoading, setIsProductsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [prices, setPrices] = useState<Record<number, string | number>>({});
+  const [category, setCategory] = useState("general");
 
   const fetchProducts = async () => {
     setIsProductsLoading(true);
@@ -78,7 +79,7 @@ function HomePage() {
       const payload = {
         name: "",
         url: url,
-        category: "",
+        category: category,
       };
       const response = await api.post("/products", payload);
       alert(`Product tracking started for: ${response.data.name}`);
@@ -113,6 +114,15 @@ function HomePage() {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="p-3 border border-gray-300 bg-gray-100 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="general">General</option>
+          <option value="cards">Cards</option>
+          <option value="games">Game Keys</option>
+        </select>
         <button
           onClick={handleTrackProduct}
           disabled={isTracking}
