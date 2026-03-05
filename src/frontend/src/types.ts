@@ -11,3 +11,9 @@ export interface Price {
   price: number;
   checked_at: string;
 }
+
+export interface Tracking {
+  id: number;
+  product_id: number;
+  is_active: boolean;
+}

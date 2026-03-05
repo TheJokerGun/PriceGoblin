@@ -1,22 +1,28 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/client";
-import type { Product } from "../types";
+import type { Product, Tracking } from "../types";
+import { LuDelete, LuPause, LuPlay } from "react-icons/lu";
 
 function HomePage() {
   const [url, setUrl] = useState("");
   const [isTracking, setIsTracking] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
+  const [trackings, setTrackings] = useState<Tracking[]>([]);
   const [isProductsLoading, setIsProductsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [prices, setPrices] = useState<Record<number, string | number>>({});
   const [category, setCategory] = useState("general");
 
-  const fetchProducts = async () => {
+  const fetchData = async () => {
     setIsProductsLoading(true);
     try {
-      const response = await api.get<Product[]>("/products");
-      setProducts(response.data);
+      const [productsRes, trackingsRes] = await Promise.all([
+        api.get<Product[]>("/products"),
+        api.get<Tracking[]>("/tracking"),
+      ]);
+      setProducts(productsRes.data);
+      setTrackings(trackingsRes.data);
     } catch (err) {
       console.error("Error fetching products:", err);
       setError("Failed to fetch products.");
@@ -26,8 +32,7 @@ function HomePage() {
   };
 
   useEffect(() => {
-    1;
-    fetchProducts();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -84,7 +89,7 @@ function HomePage() {
       const response = await api.post("/products", payload);
       alert(`Product tracking started for: ${response.data.name}`);
       setUrl("");
-      await fetchProducts();
+      await fetchData();
     } catch (error) {
       console.error("Error tracking product:", error);
       alert("Failed to track product. Check console for details.");
@@ -100,6 +105,90 @@ function HomePage() {
       return url;
     }
   };
+
+  const toggleTracking = async (e: React.MouseEvent, trackingId: number) => {
+    e.preventDefault();
+    try {
+      await api.patch(`/tracking/${trackingId}/active`, {});
+      setTrackings((prev) =>
+        prev.map((t) =>
+          t.id === trackingId ? { ...t, is_active: !t.is_active } : t,
+        ),
+      );
+    } catch (err) {
+      console.error("Error toggling tracking:", err);
+    }
+  };
+
+  const deleteTracking = async (e: React.MouseEvent, trackingId: number) => {
+    e.preventDefault();
+    if (!confirm("Are you sure you want to delete this tracking?")) return;
+    try {
+      await api.delete(`/tracking/${trackingId}`);
+      setTrackings((prev) => prev.filter((t) => t.id !== trackingId));
+    } catch (err) {
+      console.error("Error deleting tracking:", err);
+    }
+  };
+
+  const getProductWithTracking = () => {
+    return products
+      .map((p) => {
+        const t = trackings.find((tr) => tr.product_id === p.id);
+        return { ...p, tracking: t };
+      })
+      .filter((item) => item.tracking);
+  };
+
+  const combined = getProductWithTracking();
+  const activeProducts = combined.filter((p) => p.tracking?.is_active);
+  const inactiveProducts = combined.filter((p) => !p.tracking?.is_active);
+
+  const renderProductCard = (
+    product: Product & { tracking: Tracking | undefined },
+  ) => (
+    <Link
+      to={`/productinfo?id=${product.id}`}
+      key={product.id}
+      className="bg-purple-950 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow block border-2 border-gray-400 relative group"
+    >
+      <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => toggleTracking(e, product.tracking!.id)}
+          className="p-1 bg-gray-800 rounded hover:bg-gray-700 text-white"
+          title={
+            product.tracking!.is_active ? "Pause Tracking" : "Resume Tracking"
+          }
+        >
+          {product.tracking!.is_active ? <LuPause /> : <LuPlay />}
+        </button>
+        <button
+          onClick={(e) => deleteTracking(e, product.tracking!.id)}
+          className="p-1 bg-red-800 rounded hover:bg-red-700 text-white"
+          title="Delete Tracking"
+        >
+          <LuDelete />
+        </button>
+      </div>
+      <h3
+        className="font-bold text-lg truncate text-gray-300 pr-16"
+        title={product.name}
+      >
+        {product.name}
+      </h3>
+      {prices[product.id] !== undefined && (
+        <p className="text-green-500 font-bold mt-2">
+          Price: {prices[product.id]}
+        </p>
+      )}
+      <p className="text-gray-400 text-sm break-all">
+        {getDomain(product.url)}
+      </p>
+      <p className="text-gray-400 text-xs mt-2">
+        Tracked since: {new Date(product.created_at).toLocaleDateString()}
+      </p>
+    </Link>
+  );
 
   return (
     <div className="container mx-auto p-4">
@@ -141,34 +230,24 @@ function HomePage() {
         {!isProductsLoading && !error && products.length === 0 && (
           <p>You are not tracking any products yet.</p>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <Link
-              to={`/productinfo?id=${product.id}`}
-              key={product.id}
-              className="bg-purple-950 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow block border-2 border-gray-400"
-            >
-              <h3
-                className="font-bold text-lg truncate text-gray-300"
-                title={product.name}
-              >
-                {product.name}
-              </h3>
-              {prices[product.id] !== undefined && (
-                <p className="text-green-500 font-bold mt-2">
-                  Price: {prices[product.id]}
-                </p>
-              )}
-              <p className="text-gray-400 text-sm break-all">
-                {getDomain(product.url)}
-              </p>
-              <p className="text-gray-400 text-xs mt-2">
-                Tracked since:{" "}
-                {new Date(product.created_at).toLocaleDateString()}
-              </p>
-            </Link>
-          ))}
-        </div>
+
+        {activeProducts.length > 0 && (
+          <>
+            <h3 className="text-xl font-bold mb-4 text-green-400">Active</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              {activeProducts.map((product) => renderProductCard(product))}
+            </div>
+          </>
+        )}
+
+        {inactiveProducts.length > 0 && (
+          <>
+            <h3 className="text-xl font-bold mb-4 text-gray-400">Inactive</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {inactiveProducts.map((product) => renderProductCard(product))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

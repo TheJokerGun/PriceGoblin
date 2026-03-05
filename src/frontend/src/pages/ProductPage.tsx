@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import type { Product, Price } from "../types";
+import type { Product, Price, Tracking } from "../types";
 import api from "../api/client";
 import {
   LineChart,
@@ -18,6 +18,7 @@ const ProductPage = () => {
   const id = searchParams.get("id");
   const [product, setProduct] = useState<Product | null>(null);
   const [prices, setPrices] = useState<Price[]>([]);
+  const [tracking, setTracking] = useState<Tracking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,6 +75,31 @@ const ProductPage = () => {
     fetchProductData();
   }, [id]);
 
+  useEffect(() => {
+    const fetchTracking = async () => {
+      if (!id) return;
+      try {
+        const res = await api.get<Tracking[]>("/tracking");
+        const t = res.data.find((tr) => tr.product_id === Number(id));
+        setTracking(t || null);
+      } catch (e) {
+        console.error("Error fetching tracking status", e);
+      }
+    };
+    fetchTracking();
+  }, [id]);
+
+  const handleToggleTracking = async () => {
+    if (!tracking) return;
+    try {
+      await api.patch(`/tracking/${tracking.id}/active`, {});
+      setTracking({ ...tracking, is_active: !tracking.is_active });
+    } catch (e) {
+      console.error("Error toggling tracking", e);
+      alert("Failed to toggle status");
+    }
+  };
+
   const formattedPrices = prices.map((p) => ({
     date: new Date(p.checked_at).toLocaleString(),
     price: Number(p.price),
@@ -101,9 +127,22 @@ const ProductPage = () => {
         </Link>
       </div>
       <div className="bg-purple-950 p-8 rounded-lg shadow-lg border-2 border-gray-400">
-        <h1 className="text-3xl font-bold mb-2 truncate" title={product.name}>
-          {product.name}
-        </h1>
+        <div className="flex justify-between items-start mb-2">
+          <h1
+            className="text-3xl font-bold truncate flex-1"
+            title={product.name}
+          >
+            {product.name}
+          </h1>
+          {tracking && (
+            <button
+              onClick={handleToggleTracking}
+              className={`ml-4 px-4 py-2 rounded font-bold text-sm ${tracking.is_active ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}`}
+            >
+              {tracking.is_active ? "Pause Tracking" : "Resume Tracking"}
+            </button>
+          )}
+        </div>
         <a
           href={product.url}
           target="_blank"
