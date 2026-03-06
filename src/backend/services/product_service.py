@@ -1,8 +1,9 @@
 from typing import List
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from ..models import PriceEntry, Product
-from ..schemas import ProductCreate, ScrapeProductResponse, ScrapeRequest
+from ..models import PriceEntry, Product, Tracking
+from ..schemas import ProductCreate, ScrapeProductResponse, ScrapeUrlRequest
 from datetime import datetime, timezone
 import random
 from ..scrapers.url_product_scraper import scrape_product_data
@@ -12,37 +13,83 @@ from . import scraper_service
 def create_product(db: Session, user_id: int, data: ProductCreate) -> Product:
     name = data.name
     url = data.url
+    scraped_price: float | None = None
 
     # If a URL is provided, validate/scrape it and use scraped values as fallback.
     if data.url:
-        scraped_data = scraper_service.scrape(ScrapeRequest(url=data.url))
+        try:
+            scraped_data = scraper_service.scrape_url(ScrapeUrlRequest(url=data.url))
+        except HTTPException:
+            scraped_data = None
         if isinstance(scraped_data, ScrapeProductResponse):
             if not name:
                 name = scraped_data.name
             url = scraped_data.url or data.url
+            if isinstance(scraped_data.price, (int, float)):
+                scraped_price = float(scraped_data.price)
 
-    product = Product(
-        name=name,
-        url=url,
-        category=data.category,
-        user_id=user_id,
-        created_at=datetime.now(timezone.utc)
+    product = db.query(Product).filter(Product.url == url).first() if url else None
+    created_new_product = False
+    if not product:
+        product = Product(
+            name=name,
+            url=url,
+            category=data.category,
+            created_at=datetime.now(timezone.utc)
+        )
+        db.add(product)
+        db.flush()
+        created_new_product = True
+    else:
+        # Backfill missing metadata on an existing shared product.
+        if not product.name and name:
+            product.name = name
+        if not product.category and data.category:
+            product.category = data.category
+
+    # Persist first known price on create, or if an existing shared product has no history yet.
+    if scraped_price is not None:
+        has_price_history = (
+            db.query(PriceEntry.id).filter(PriceEntry.product_id == product.id).first() is not None
+        )
+        if created_new_product or not has_price_history:
+            db.add(PriceEntry(product_id=product.id, price=scraped_price))
+
+    tracking = (
+        db.query(Tracking)
+        .filter(Tracking.user_id == user_id, Tracking.product_id == product.id)
+        .first()
     )
-    db.add(product)
+    if not tracking:
+        db.add(Tracking(user_id=user_id, product_id=product.id, is_active=True))
+    else:
+        tracking.is_active = True
+
     db.commit()
     db.refresh(product)
     return product
 
 
 def get_user_products(db: Session, user_id: int) -> List[Product]:
-    return db.query(Product).filter(Product.user_id == user_id).all()
+    return (
+        db.query(Product)
+        .join(Tracking, Tracking.product_id == Product.id)
+        .filter(Tracking.user_id == user_id)
+        .order_by(Product.created_at.desc(), Product.id.desc())
+        .all()
+    )
 
 
 def get_product_by_id(db: Session, user_id: int, product_id: int) -> Product | None:
-    return db.query(Product).filter(
-        Product.id == product_id,
-        Product.user_id == user_id
-    ).first()
+    return (
+        db.query(Product)
+        .join(Tracking, Tracking.product_id == Product.id)
+        .filter(
+            Product.id == product_id,
+            Tracking.user_id == user_id,
+        )
+        .first()
+    )
 
 
 def get_latest_product_price(db: Session, product_id: int) -> PriceEntry | None:
@@ -55,10 +102,27 @@ def get_latest_product_price(db: Session, product_id: int) -> PriceEntry | None:
 
 
 def delete_product(db: Session, user_id: int, product_id: int) -> bool:
-    product = get_product_by_id(db, user_id, product_id)
-    if not product:
+    tracking = (
+        db.query(Tracking)
+        .filter(Tracking.product_id == product_id, Tracking.user_id == user_id)
+        .first()
+    )
+    if not tracking:
         return False
-    db.delete(product)
+
+    db.delete(tracking)
+    db.flush()
+
+    remaining_tracking = (
+        db.query(Tracking.id).filter(Tracking.product_id == product_id).first() is not None
+    )
+    if not remaining_tracking:
+        db.query(PriceEntry).filter(PriceEntry.product_id == product_id).delete(
+            synchronize_session=False
+        )
+        product = db.query(Product).filter(Product.id == product_id).first()
+        if product:
+            db.delete(product)
     db.commit()
     return True
 

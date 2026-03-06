@@ -15,7 +15,7 @@ class User(Base):
         default=lambda: datetime.now(timezone.utc)
     )
 
-    products: Mapped[list["Product"]] = relationship(back_populates="owner")
+    trackings: Mapped[list["Tracking"]] = relationship(back_populates="user")
 
 
 class Product(Base):
@@ -25,14 +25,13 @@ class Product(Base):
     name: Mapped[str | None] = mapped_column(String, nullable=True)
     url: Mapped[str | None] = mapped_column(String, nullable=True)
     category: Mapped[str | None] = mapped_column(String, nullable=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc)
     )
 
-    owner: Mapped["User"] = relationship(back_populates="products")
     prices: Mapped[list["PriceEntry"]] = relationship(back_populates="product")
+    trackings: Mapped[list["Tracking"]] = relationship(back_populates="product")
 
 
 class PriceEntry(Base):
@@ -56,8 +55,10 @@ class Tracking(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    url: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc)
     )
+
+    user: Mapped["User"] = relationship(back_populates="trackings")
+    product: Mapped["Product"] = relationship(back_populates="trackings")

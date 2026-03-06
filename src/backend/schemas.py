@@ -47,12 +47,38 @@ class PriceResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+# -------- TRACKING --------
+
+class TrackingResponse(BaseModel):
+    id: int
+    user_id: int
+    product_id: int
+    is_active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TrackingActiveUpdate(BaseModel):
+    is_active: bool | None = None
+
 # -------- SCRAPER --------
 
 class ScrapeRequest(BaseModel):
     name: str | None = None
     url: str | None = None
     category: str | None = None
+
+
+class ScrapeUrlRequest(BaseModel):
+    url: str
+
+
+class ScrapeCategoryRequest(BaseModel):
+    category: str
+    name: str | None = None
+    limit: int = 10
 
 
 class ScrapeProductResponse(BaseModel):

@@ -50,7 +50,7 @@ def delete_product(
     success = product_service.delete_product(db, current_user.id, product_id)
     if not success:
         raise HTTPException(status_code=404, detail="Product not found")
-    return {"detail": "Product deleted successfully"}
+    return {"detail": "Product untracked successfully"}
 
 
 @router.get("/{product_id}/prices", response_model=list[PriceResponse])

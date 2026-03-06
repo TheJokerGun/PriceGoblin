@@ -22,7 +22,6 @@
 - `name` (TEXT, nullable)
 - `url` (TEXT, nullable)
 - `category` (TEXT, nullable)
-- `user_id` (INTEGER, FK -> `users.id`, required)
 - `created_at` (DATETIME with timezone intent, required)
 
 #### `price_entries`
@@ -36,13 +35,13 @@
 - `user_id` (INTEGER, FK -> `users.id`, required)
 - `product_id` (INTEGER, FK -> `products.id`, required)
 - `is_active` (BOOLEAN, default: `true`)
-- `url` (TEXT, nullable)
 - `created_at` (DATETIME with timezone intent, required)
 
 ### Relationships
-- One `users` row can have many `products` rows (`products.user_id`).
+- One `users` row can have many `tracking` rows (`tracking.user_id`).
+- One `products` row can have many `tracking` rows (`tracking.product_id`).
 - One `products` row can have many `price_entries` rows (`price_entries.product_id`).
-- `tracking` links `users` and `products` for tracking state.
+- `tracking` is the join table that links users to products and stores tracking state.
 
 ### Date/Time Storage and Delivery
 - Timestamps are generated in backend code with `datetime.now(timezone.utc)`.
@@ -56,7 +55,7 @@
 - JWT bearer token is returned by login/register.
 - Send token on protected endpoints:
   - `Authorization: Bearer <access_token>`
-- Protected endpoints: all `/api/products/*`
+- Protected endpoints: all `/api/products/*`, `/api/tracking/*`
 - Public endpoints: `/api/auth/register`, `/api/auth/login`, `/api/scrape`
 
 ## Common Error Shape
@@ -129,7 +128,7 @@ Success `200`:
 ### Products (Protected)
 
 #### `POST /api/products`
-Create a product.
+Create or attach a product to the current user's tracking list.
 
 Request:
 ```json
@@ -159,7 +158,7 @@ Errors:
 - `401` unauthorized
 
 #### `GET /api/products`
-List all products of current user.
+List products tracked by current user.
 
 Success `200`:
 ```json
@@ -175,7 +174,7 @@ Success `200`:
 ```
 
 #### `GET /api/products/{product_id}`
-Get one product by id (current user ownership enforced).
+Get one tracked product by id (current user tracking enforced).
 
 Success `200`:
 ```json
@@ -193,11 +192,12 @@ Errors:
 - `401` unauthorized
 
 #### `DELETE /api/products/{product_id}`
-Delete one product.
+Untrack one product for the current user.
+If no users track the product afterward, the product and its price history are removed.
 
 Success `200`:
 ```json
-{ "detail": "Product deleted successfully" }
+{ "detail": "Product untracked successfully" }
 ```
 
 Errors:
@@ -260,32 +260,80 @@ Errors:
 - `404` product not found
 - `401` unauthorized
 
+#### `DELETE /api/tracking/{tracking_id}`
+Delete a tracking entry owned by the authenticated user.
+
+Success `200`:
+```json
+{
+  "detail": "Tracking entry deleted successfully"
+}
+```
+
+Errors:
+- `404` tracking entry not found
+- `401` unauthorized
+
+#### `GET /api/tracking`
+List tracking entries for the authenticated user.
+
+Success `200`:
+```json
+[
+  {
+    "id": 44,
+    "user_id": 1,
+    "product_id": 12,
+    "is_active": true,
+    "created_at": "2026-03-04T09:00:00.000000+00:00"
+  }
+]
+```
+
+Errors:
+- `401` unauthorized
+
+#### `PATCH /api/tracking/{tracking_id}/active`
+Set a tracking entry active/inactive.  
+If `is_active` is omitted or `null`, the value is toggled.
+
+Request:
+```json
+{
+  "is_active": false
+}
+```
+
+Success `200`:
+```json
+{
+  "id": 44,
+  "user_id": 1,
+  "product_id": 12,
+  "is_active": false,
+  "created_at": "2026-03-04T09:00:00.000000+00:00"
+}
+```
+
+Errors:
+- `404` tracking entry not found
+- `401` unauthorized
+
 ---
 
 ### Scraping (Public)
 
-#### `POST /api/scrape`
-Scrape either by `url` or by `category`.
+#### `POST /api/scrape/url`
+Scrape one product URL.
 
-Request (product/url mode):
+Request:
 ```json
 {
   "url": "https://example.com/p/123"
 }
 ```
 
-Request (category mode):
-```json
-{
-  "category": "graphics-cards"
-}
-```
-
-Rules:
-- Provide exactly one of `url` or `category`.
-- For category mode, `name` is used as the search query term.
-
-Success `200` (url mode):
+Success `200`:
 ```json
 {
   "type": "product",
@@ -298,33 +346,61 @@ Success `200` (url mode):
 }
 ```
 
-Success `200` (category mode):
+Errors:
+- `400` scrape failed
+
+#### `POST /api/scrape/category`
+Scrape category candidates (selection list for frontend).  
+Use this before product creation in category flow.
+
+Request:
+```json
+{
+  "category": "games",
+  "name": "elden ring",
+  "limit": 10
+}
+```
+
+Success `200`:
 ```json
 {
   "type": "category",
-  "category": "graphics-cards",
-  "count": 2,
+  "category": "games",
+  "count": 3,
   "data": [
     {
-      "name": "GPU A",
-      "price": "499,99 €",
-      "source": "idealo",
-      "url": "https://example.com/product-a"
+      "name": "ELDEN RING",
+      "price": 59.99,
+      "source": "steam",
+      "url": "https://store.steampowered.com/app/1245620/ELDEN_RING/"
     },
     {
-      "name": "GPU B",
-      "price": 529.99,
-      "source": "geizhals",
-      "url": "https://example.com/product-b"
+      "name": "ELDEN RING NIGHTREIGN Key kaufen Preisvergleich",
+      "price": 10.35,
+      "source": "GAMESEAL",
+      "url": "https://www.allkeyshop.com/redirection/offer/..."
     }
   ]
 }
 ```
 
+Supported category keys (current implementation): `general`, `games`, `cards`.
+`limit` is clamped to `1..50` (default `10`).
+
 Errors:
-- `400` invalid input or scrape failure
+- `400` scrape failed
 - `500` invalid category scraper output format
 
+#### `POST /api/scrape`
+Legacy combined endpoint (backward-compatible).  
+Prefer `/api/scrape/url` and `/api/scrape/category` for new frontend flow.
+
 ## Notes for Frontend
+- Recommended games/category flow:
+  1. Call `POST /api/scrape/category` with `{category,name,limit}`.
+  2. Show candidates (`name`, `price`, `source`, `url`) to user.
+  3. On selection, call `POST /api/products` for selected entries only.
+  4. Use `GET /api/tracking` to show tracked state and active toggles.
 - Use `GET /api/products/{product_id}/current-price` to show the latest known value without triggering a new scrape.
 - Use `POST /api/products/{product_id}/check-price` only when you intentionally want a fresh fetch + DB write.

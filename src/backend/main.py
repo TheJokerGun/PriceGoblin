@@ -26,6 +26,7 @@ from src.backend.logging_utils import (
 from src.backend.routes.scraper import router as scrape_router
 from src.backend.routes.auth import router as auth_router
 from src.backend.routes.products import router as products_router
+from src.backend.routes.tracking import router as tracking_router
 
 logger = configure_logging()
 app = FastAPI()
@@ -64,6 +65,7 @@ app.add_middleware(
 app.include_router(scrape_router)
 app.include_router(auth_router)
 app.include_router(products_router)
+app.include_router(tracking_router)
 
 
 @app.middleware("http")

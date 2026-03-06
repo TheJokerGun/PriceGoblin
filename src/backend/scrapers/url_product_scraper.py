@@ -3,7 +3,7 @@ import re
 from urllib.parse import urlparse
 
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, FeatureNotFound
 from playwright.sync_api import sync_playwright
 
 from ..logging_utils import configure_logging, format_exception_detail, log_event
@@ -69,6 +69,14 @@ GENERIC_PRICE_SELECTORS = [
     "[itemprop='price']",
     "meta[itemprop='price']",
 ]
+
+
+def _build_soup(html: str) -> BeautifulSoup:
+    try:
+        return BeautifulSoup(html, "lxml")
+    except FeatureNotFound:
+        # Fallback keeps scraping alive when optional lxml isn't installed.
+        return BeautifulSoup(html, "html.parser")
 
 
 def _get_site_key(url: str) -> str | None:
@@ -163,7 +171,7 @@ def scrape_with_bs4(url: str):
         )
         return None
 
-    soup = BeautifulSoup(response.text, "lxml")
+    soup = _build_soup(response.text)
 
     title = _extract_title_from_soup(soup, title_selectors) or "Unknown"
     price = _extract_price_from_soup(soup, price_selectors)
