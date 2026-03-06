@@ -7,12 +7,12 @@ from ..services import auth_service, product_service
 router = APIRouter(prefix="/api/products", tags=["Products"])
 
 
-@router.post("/", response_model=ProductResponse)
+@router.post("", response_model=ProductResponse)
 def create_product(
     product: ProductCreate,
     db: Session = Depends(get_db),
     current_user=Depends(auth_service.get_current_user)
-):
+) -> product_service.Product:
     if not product.name and not product.url and not product.category:
         raise HTTPException(
             status_code=400,
@@ -21,31 +21,44 @@ def create_product(
     return product_service.create_product(db, current_user.id, product)
 
 
-@router.get("/", response_model=list[ProductResponse])
+@router.get("", response_model=list[ProductResponse])
 def get_products(
     db: Session = Depends(get_db),
     current_user=Depends(auth_service.get_current_user)
-):
+) -> product_service.List[product_service.Product]:
     return product_service.get_user_products(db, current_user.id)
+
+
+@router.get("/{product_id}", response_model=ProductResponse)
+def get_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(auth_service.get_current_user)
+) -> product_service.Product:
+    product = product_service.get_product_by_id(db, current_user.id, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
 
 @router.delete("/{product_id}")
 def delete_product(
     product_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(auth_service.get_current_user)
-):
+) -> dict[str, str]:
     success = product_service.delete_product(db, current_user.id, product_id)
-    #TODO: Figure out if there is a connection table with tracked products and users or just a tracked items table
     if not success:
         raise HTTPException(status_code=404, detail="Product not found")
-    return {"detail": "Product deleted successfully"}
+    return {"detail": "Product untracked successfully"}
+
 
 @router.get("/{product_id}/prices", response_model=list[PriceResponse])
 def get_product_prices(
     product_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(auth_service.get_current_user)
-):
+) -> list[PriceResponse]:
     prices = product_service.get_product_prices(db, current_user.id, product_id)
     if prices is None:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -59,12 +72,34 @@ def get_product_prices(
         for entry in prices
     ]
 
+
+@router.get("/{product_id}/current-price", response_model=PriceResponse)
+def get_product_current_price(
+    product_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(auth_service.get_current_user)
+) -> PriceResponse:
+    product = product_service.get_product_by_id(db, current_user.id, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    current_price = product_service.get_latest_product_price(db, product_id)
+    if not current_price:
+        raise HTTPException(status_code=404, detail="No stored price found for product")
+
+    return PriceResponse(
+        id=current_price.id,
+        price=current_price.price,
+        checked_at=current_price.created_at
+    )
+
+
 @router.post("/{product_id}/check-price", response_model=PriceResponse)
 def check_product_price(
     product_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(auth_service.get_current_user)
-):
+) -> PriceResponse:
     result = product_service.check_product_price(db, current_user.id, product_id)
     if not result:
         raise HTTPException(status_code=404, detail="Product not found")
