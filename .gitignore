@@ -343,3 +343,8 @@ sketch
 [Ss]cripts
 pyvenv.cfg
 pip-selfcheck.json
+
+# temporary debug files
+*.log
+**/tmp/
+
