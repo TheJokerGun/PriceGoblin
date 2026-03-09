@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import api from "../api/client";
-import type { Product, Tracking } from "../types";
-import { LuDelete, LuPause, LuPlay, LuRefreshCw } from "react-icons/lu";
+import type { Product, Tracking, ScrapedItem, ScrapeResult } from "../types";
+
+import SearchSection from "../components/SearchSection";
+import CandidateSelection from "../components/CandidateSelection";
+import Dashboard from "../components/Dashboard";
 
 function HomePage() {
   const [url, setUrl] = useState("");
@@ -14,6 +16,9 @@ function HomePage() {
   const [prices, setPrices] = useState<Record<number, string | number>>({});
   const [refreshing, setRefreshing] = useState<Record<number, boolean>>({});
   const [category, setCategory] = useState("general");
+  const [view, setView] = useState<"home" | "selection">("home");
+  const [candidates, setCandidates] = useState<ScrapedItem[]>([]);
+  const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
 
   const fetchData = async () => {
     setIsProductsLoading(true);
@@ -47,48 +52,113 @@ function HomePage() {
           }));
         })
         .catch((err) => {
-          // If 404, it might not have any price entries yet.
           if (err.response?.status !== 404) {
-            console.error(
-              `Error fetching price for product ${product.id}:`,
-              err,
-            );
+            console.error(`Error fetching price for product ${product.id}:`, err);
           }
         });
     });
   }, [products]);
 
+  const isUrl = (str: string) => {
+    try {
+      const parsed = new URL(str);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+
   const handleTrackProduct = async () => {
-    if (!url.trim()) {
-      alert("Please enter a URL to track.");
+    const input = url.trim();
+    if (!input) {
+      alert("Please enter a URL or product name.");
       return;
     }
 
     setIsTracking(true);
+    setError(null);
     try {
-      const payload = {
-        name: "",
-        url: url,
-        category: category,
-      };
-      const response = await api.post("/products", payload);
-      alert(`Product tracking started for: ${response.data.name}`);
-      setUrl("");
-      await fetchData();
-    } catch (error) {
-      console.error("Error tracking product:", error);
-      alert("Failed to track product. Check console for details.");
+      if (isUrl(input)) {
+        const scrapeRes = await api.post<ScrapeResult>("/scrape/url", { url: input });
+        const scrapedProduct = scrapeRes.data;
+
+        await api.post("/products/bulk", {
+          items: [
+            {
+              name: scrapedProduct.name,
+              url: scrapedProduct.url,
+              category: category,
+              price: scrapedProduct.price,
+            },
+          ],
+        });
+
+        alert(`Product tracking started for: ${scrapedProduct.name}`);
+        setUrl("");
+        await fetchData();
+      } else {
+        const response = await api.post<ScrapeResult>("/scrape/category", {
+          category: category,
+          name: input,
+          limit: 10,
+        });
+
+        if (response.data.data && response.data.data.length > 0) {
+          setCandidates(response.data.data);
+          setSelectedUrls(new Set());
+          setView("selection");
+        } else {
+          alert("No products found for this search.");
+        }
+      }
+    } catch (err: any) {
+      console.error("Error in scraping flow:", err);
+      const detail = err.response?.data?.detail || "Scrape failed.";
+      setError(detail);
+      alert(`Error: ${detail}`);
     } finally {
       setIsTracking(false);
     }
   };
 
-  const getDomain = (url: string) => {
-    try {
-      return new URL(url).hostname;
-    } catch (e) {
-      return url;
+  const handleTrackSelected = async () => {
+    if (selectedUrls.size === 0) {
+      alert("Please select at least one item to track.");
+      return;
     }
+
+    setIsTracking(true);
+    try {
+      const selectedItems = candidates.filter((c) => selectedUrls.has(c.url));
+      const items = selectedItems.map((item) => ({
+        name: item.name,
+        url: item.url,
+        category: category,
+        price: item.price,
+        source: item.source,
+      }));
+
+      await api.post("/products/bulk", { items });
+
+      alert(`Successfully tracked ${selectedUrls.size} items.`);
+      setView("home");
+      setUrl("");
+      await fetchData();
+    } catch (err: any) {
+      console.error("Error tracking selected items:", err);
+      alert("Failed to track items. Check console.");
+    } finally {
+      setIsTracking(false);
+    }
+  };
+
+  const toggleCandidate = (candidateUrl: string) => {
+    setSelectedUrls((prev) => {
+      const next = new Set(prev);
+      if (next.has(candidateUrl)) next.delete(candidateUrl);
+      else next.add(candidateUrl);
+      return next;
+    });
   };
 
   const toggleTracking = async (e: React.MouseEvent, trackingId: number) => {
@@ -98,7 +168,7 @@ function HomePage() {
       setTrackings((prev) =>
         prev.map((t) =>
           t.id === trackingId ? { ...t, is_active: !t.is_active } : t,
-        ),
+        )
       );
     } catch (err) {
       console.error("Error toggling tracking:", err);
@@ -132,134 +202,55 @@ function HomePage() {
     }
   };
 
-  const getProductWithTracking = () => {
-    return products
-      .map((p) => {
-        const t = trackings.find((tr) => tr.product_id === p.id);
-        return { ...p, tracking: t };
-      })
-      .filter((item) => item.tracking);
-  };
+  const combined = products
+    .map((p) => {
+      const t = trackings.find((tr) => tr.product_id === p.id);
+      return { ...p, tracking: t };
+    })
+    .filter((item) => item.tracking);
 
-  const combined = getProductWithTracking();
   const activeProducts = combined.filter((p) => p.tracking?.is_active);
   const inactiveProducts = combined.filter((p) => !p.tracking?.is_active);
 
-  const renderProductCard = (
-    product: Product & { tracking: Tracking | undefined },
-  ) => (
-    <Link
-      to={`/productinfo?id=${product.id}`}
-      key={product.id}
-      className="bg-purple-950 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow block border-2 border-gray-400 relative group"
-    >
-      <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={(e) => refreshPrice(e, product.id)}
-          className={`p-1 bg-blue-800 rounded hover:bg-blue-700 text-white ${refreshing[product.id] ? "animate-spin cursor-not-allowed" : ""}`}
-          title="Refresh Price"
-          disabled={refreshing[product.id]}
-        >
-          <LuRefreshCw />
-        </button>
-        <button
-          onClick={(e) => toggleTracking(e, product.tracking!.id)}
-          className="p-1 bg-gray-800 rounded hover:bg-gray-700 text-white"
-          title={
-            product.tracking!.is_active ? "Pause Tracking" : "Resume Tracking"
-          }
-        >
-          {product.tracking!.is_active ? <LuPause /> : <LuPlay />}
-        </button>
-        <button
-          onClick={(e) => deleteTracking(e, product.tracking!.id)}
-          className="p-1 bg-red-800 rounded hover:bg-red-700 text-white"
-          title="Delete Tracking"
-        >
-          <LuDelete />
-        </button>
-      </div>
-      <h3
-        className="font-bold text-lg truncate text-gray-300 pr-16"
-        title={product.name}
-      >
-        {product.name}
-      </h3>
-      {prices[product.id] !== undefined && (
-        <p className="text-green-500 font-bold mt-2">
-          Price: {prices[product.id]}
-        </p>
-      )}
-      <p className="text-gray-400 text-sm break-all">
-        {getDomain(product.url)}
-      </p>
-      <p className="text-gray-400 text-xs mt-2">
-        Tracked since: {new Date(product.created_at).toLocaleDateString()}
-      </p>
-    </Link>
-  );
+  if (view === "selection") {
+    return (
+      <CandidateSelection
+        candidates={candidates}
+        selectedUrls={selectedUrls}
+        onToggleCandidate={toggleCandidate}
+        onTrackSelected={handleTrackSelected}
+        onBack={() => setView("home")}
+        isTracking={isTracking}
+      />
+    );
+  }
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="w-full max-w-md mx-auto flex flex-col gap-4 mb-8">
-        <h2 className="text-2xl font-bold text-center text-white">
-          Track a New Product
-        </h2>
-        <input
-          type="text"
-          placeholder="Enter product URL to track"
-          className="p-3 border border-gray-300 bg-gray-100 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-        />
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="p-3 border border-gray-300 bg-gray-100 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="general">General</option>
-          <option value="cards">Cards</option>
-          <option value="games">Game Keys</option>
-        </select>
-        <button
-          onClick={handleTrackProduct}
-          disabled={isTracking}
-          className={`bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition ${isTracking ? "opacity-50 cursor-not-allowed" : ""}`}
-        >
-          {isTracking ? "Tracking..." : "Track Product"}
-        </button>
-      </div>
+    <div className="container mx-auto p-4 min-h-screen">
+      <SearchSection
+        url={url}
+        setUrl={setUrl}
+        category={category}
+        setCategory={setCategory}
+        handleTrackProduct={handleTrackProduct}
+        isTracking={isTracking}
+      />
 
-      <div>
-        <h2 className="text-2xl font-bold mb-4 text-white">
-          Your Tracked Products
-        </h2>
-        {isProductsLoading && <p>Loading products...</p>}
-        {error && <p className="text-red-500">{error}</p>}
-        {!isProductsLoading && !error && products.length === 0 && (
-          <p>You are not tracking any products yet.</p>
-        )}
-
-        {activeProducts.length > 0 && (
-          <>
-            <h3 className="text-xl font-bold mb-4 text-green-400">Active</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {activeProducts.map((product) => renderProductCard(product))}
-            </div>
-          </>
-        )}
-
-        {inactiveProducts.length > 0 && (
-          <>
-            <h3 className="text-xl font-bold mb-4 text-gray-400">Inactive</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {inactiveProducts.map((product) => renderProductCard(product))}
-            </div>
-          </>
-        )}
-      </div>
+      <Dashboard
+        isLoading={isProductsLoading}
+        error={error}
+        products={products}
+        activeProducts={activeProducts}
+        inactiveProducts={inactiveProducts}
+        prices={prices}
+        refreshing={refreshing}
+        onRefreshPrice={refreshPrice}
+        onToggleTracking={toggleTracking}
+        onDeleteTracking={deleteTracking}
+      />
     </div>
   );
 }
 
 export default HomePage;
+
