@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/client";
 import type { Product, Tracking } from "../types";
-import { LuDelete, LuPause, LuPlay } from "react-icons/lu";
+import { LuDelete, LuPause, LuPlay, LuRefreshCw } from "react-icons/lu";
 
 function HomePage() {
   const [url, setUrl] = useState("");
@@ -12,6 +12,7 @@ function HomePage() {
   const [isProductsLoading, setIsProductsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [prices, setPrices] = useState<Record<number, string | number>>({});
+  const [refreshing, setRefreshing] = useState<Record<number, boolean>>({});
   const [category, setCategory] = useState("general");
 
   const fetchData = async () => {
@@ -36,40 +37,24 @@ function HomePage() {
   }, []);
 
   useEffect(() => {
-    const CACHE_KEY = "product_price_cache";
-    const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
-    const now = Date.now();
-    const cachedData = localStorage.getItem(CACHE_KEY);
-    const cache = cachedData ? JSON.parse(cachedData) : {};
-
     products.forEach((product) => {
-      const cachedItem = cache[product.id];
-      if (cachedItem && now - cachedItem.timestamp < CACHE_DURATION) {
-        setPrices((prev) => ({ ...prev, [product.id]: cachedItem.price }));
-      } else {
-        api
-          .post(`/products/${product.id}/check-price`)
-          .then((response) => {
-            setPrices((prev) => ({
-              ...prev,
-              [product.id]: response.data.price,
-            }));
-            const currentCache = JSON.parse(
-              localStorage.getItem(CACHE_KEY) || "{}",
-            );
-            currentCache[product.id] = {
-              price: response.data.price,
-              timestamp: Date.now(),
-            };
-            localStorage.setItem(CACHE_KEY, JSON.stringify(currentCache));
-          })
-          .catch((err) =>
+      api
+        .get(`/products/${product.id}/current-price`)
+        .then((response) => {
+          setPrices((prev) => ({
+            ...prev,
+            [product.id]: response.data.price,
+          }));
+        })
+        .catch((err) => {
+          // If 404, it might not have any price entries yet.
+          if (err.response?.status !== 404) {
             console.error(
               `Error fetching price for product ${product.id}:`,
               err,
-            ),
-          );
-      }
+            );
+          }
+        });
     });
   }, [products]);
 
@@ -131,6 +116,22 @@ function HomePage() {
     }
   };
 
+  const refreshPrice = async (e: React.MouseEvent, productId: number) => {
+    e.preventDefault();
+    setRefreshing((prev) => ({ ...prev, [productId]: true }));
+    try {
+      const response = await api.post(`/products/${productId}/check-price`);
+      setPrices((prev) => ({
+        ...prev,
+        [productId]: response.data.price,
+      }));
+    } catch (err) {
+      console.error(`Error refreshing price for product ${productId}:`, err);
+    } finally {
+      setRefreshing((prev) => ({ ...prev, [productId]: false }));
+    }
+  };
+
   const getProductWithTracking = () => {
     return products
       .map((p) => {
@@ -153,6 +154,14 @@ function HomePage() {
       className="bg-purple-950 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow block border-2 border-gray-400 relative group"
     >
       <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => refreshPrice(e, product.id)}
+          className={`p-1 bg-blue-800 rounded hover:bg-blue-700 text-white ${refreshing[product.id] ? "animate-spin cursor-not-allowed" : ""}`}
+          title="Refresh Price"
+          disabled={refreshing[product.id]}
+        >
+          <LuRefreshCw />
+        </button>
         <button
           onClick={(e) => toggleTracking(e, product.tracking!.id)}
           className="p-1 bg-gray-800 rounded hover:bg-gray-700 text-white"
