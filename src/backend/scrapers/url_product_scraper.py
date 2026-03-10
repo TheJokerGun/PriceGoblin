@@ -1,14 +1,21 @@
 import logging
-import re
+import json
 from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup, FeatureNotFound
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 from ..logging_utils import configure_logging, format_exception_detail, log_event
+from ..price_utils import extract_price_value
 
 logger = configure_logging()
+
+WEBKIT_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -17,6 +24,8 @@ HEADERS = {
     "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
     "Referer": "https://www.google.com/",
 }
+
+UNSUPPORTED_URL_SITES = {"etsy"}
 
 SITE_CONFIGS: dict[str, dict[str, list[str]]] = {
     "cyberport": {
@@ -57,6 +66,83 @@ SITE_CONFIGS: dict[str, dict[str, list[str]]] = {
             "meta[itemprop='price']",
         ],
     },
+    "amazon": {
+        "title_selectors": [
+            "#productTitle",
+            "h1#title span",
+            "meta[property='og:title']",
+            "title",
+        ],
+        "price_selectors": [
+            "#corePriceDisplay_desktop_feature_div span.a-price span.a-offscreen",
+            "span#priceblock_ourprice",
+            "span#priceblock_dealprice",
+            "span#priceblock_saleprice",
+            "span.a-price.aok-align-center span.a-offscreen",
+            "span.a-price .a-offscreen",
+            "meta[property='product:price:amount']",
+            "meta[itemprop='price']",
+        ],
+    },
+    "ebay": {
+        "title_selectors": [
+            "h1.x-item-title__mainTitle span",
+            "h1#itemTitle",
+            "meta[property='og:title']",
+            "title",
+        ],
+        "price_selectors": [
+            "div.x-price-primary span.ux-textspans",
+            "div.x-price-primary span",
+            "span[itemprop='price']",
+            "meta[property='product:price:amount']",
+            "meta[itemprop='price']",
+        ],
+    },
+    "etsy": {
+        "title_selectors": [
+            "h1[data-buy-box-listing-title='true']",
+            "h1.wt-text-body-03",
+            "meta[property='og:title']",
+            "title",
+        ],
+        "price_selectors": [
+            "p[data-buy-box-region='price'] span.currency-value",
+            "[data-buy-box-region='price'] .wt-text-title-03",
+            "p.wt-text-title-03",
+            "meta[property='product:price:amount']",
+            "meta[itemprop='price']",
+        ],
+    },
+    "ikea": {
+        "title_selectors": [
+            "h1[data-testid='product-name']",
+            "h1",
+            "meta[property='og:title']",
+            "title",
+        ],
+        "price_selectors": [
+            "span[data-testid='price']",
+            ".pip-price__integer",
+            ".pip-temp-price__sr-text",
+            "meta[property='product:price:amount']",
+            "meta[itemprop='price']",
+        ],
+    },
+    "aliexpress": {
+        "title_selectors": [
+            "h1[data-pl='product-title']",
+            ".product-title-text",
+            "meta[property='og:title']",
+            "title",
+        ],
+        "price_selectors": [
+            ".price--currentPriceText--V8_y_b5",
+            "[data-pl='product-price']",
+            "meta[property='product:price:amount']",
+            "meta[itemprop='price']",
+        ],
+    },
 }
 
 GENERIC_TITLE_SELECTORS = ["meta[property='og:title']", "h1", "title"]
@@ -67,6 +153,8 @@ GENERIC_PRICE_SELECTORS = [
     ".price",
     ".pprice",
     "[itemprop='price']",
+    "meta[property='product:price:amount']",
+    "meta[property='og:price:amount']",
     "meta[itemprop='price']",
 ]
 
@@ -79,8 +167,18 @@ def _build_soup(html: str) -> BeautifulSoup:
         return BeautifulSoup(html, "html.parser")
 
 
-def _get_site_key(url: str) -> str | None:
+def get_site_key(url: str) -> str | None:
     host = urlparse(url).netloc.lower()
+    if "amazon." in host:
+        return "amazon"
+    if "ebay." in host:
+        return "ebay"
+    if "etsy." in host:
+        return "etsy"
+    if "ikea." in host:
+        return "ikea"
+    if "aliexpress." in host:
+        return "aliexpress"
     if "cyberport" in host:
         return "cyberport"
     if "alternate" in host:
@@ -92,15 +190,21 @@ def _get_site_key(url: str) -> str | None:
     return None
 
 
+def _get_site_key(url: str) -> str | None:
+    return get_site_key(url)
+
+
+def get_unsupported_url_sites() -> list[str]:
+    return sorted(UNSUPPORTED_URL_SITES)
+
+
+def is_url_site_explicitly_unsupported(url: str) -> bool:
+    site_key = get_site_key(url)
+    return site_key in UNSUPPORTED_URL_SITES if site_key else False
+
+
 def _extract_price_from_text(text: str) -> float | None:
-    match = re.search(r"(\d{1,3}(?:[.\s]\d{3})*[.,]\d{2}|\d+[.,]\d{2})", text)
-    if not match:
-        return None
-    normalized = match.group(1).replace(" ", "").replace(".", "").replace(",", ".")
-    try:
-        return float(normalized)
-    except ValueError:
-        return None
+    return extract_price_value(text)
 
 
 def extract_price(text: str) -> float | None:
@@ -108,6 +212,7 @@ def extract_price(text: str) -> float | None:
 
 
 def _extract_title_from_soup(soup: BeautifulSoup, selectors: list[str]) -> str | None:
+    best_title = None
     for selector in selectors:
         node = soup.select_one(selector)
         if not node:
@@ -115,11 +220,38 @@ def _extract_title_from_soup(soup: BeautifulSoup, selectors: list[str]) -> str |
         if node.name == "meta":
             content = (node.get("content") or "").strip()
             if content:
-                return content
+                best_title = _choose_better_title(best_title, content)
+                continue
         text = node.get_text(" ", strip=True)
         if text:
-            return text
-    return None
+            best_title = _choose_better_title(best_title, text)
+    return best_title
+
+
+def _looks_like_domain_title(value: str | None) -> bool:
+    if not value:
+        return False
+    normalized = value.strip().lower()
+    # e.g. "notebooksbilliger.de", "etsy.com"
+    return "." in normalized and " " not in normalized and len(normalized) <= 64
+
+
+def _choose_better_title(current: str | None, candidate: str | None) -> str | None:
+    if not candidate:
+        return current
+    candidate = candidate.strip()
+    if not candidate:
+        return current
+    if not current:
+        return candidate
+
+    current_domain_like = _looks_like_domain_title(current)
+    candidate_domain_like = _looks_like_domain_title(candidate)
+    if candidate_domain_like and not current_domain_like:
+        return current
+    if current_domain_like and not candidate_domain_like:
+        return candidate
+    return candidate if len(candidate) >= len(current) else current
 
 
 def _extract_price_from_soup(soup: BeautifulSoup, selectors: list[str]) -> float | None:
@@ -138,11 +270,69 @@ def _extract_price_from_soup(soup: BeautifulSoup, selectors: list[str]) -> float
         if price is not None:
             return price
 
-    return _extract_price_from_text(soup.get_text(" ", strip=True))
+    return None
+
+
+def _extract_price_and_title_from_json_ld(soup: BeautifulSoup) -> tuple[str | None, float | None]:
+    def _walk(payload):
+        if isinstance(payload, dict):
+            yield payload
+            for value in payload.values():
+                yield from _walk(value)
+        elif isinstance(payload, list):
+            for item in payload:
+                yield from _walk(item)
+
+    def _extract_offer_price(offer_payload) -> float | None:
+        for node in _walk(offer_payload):
+            if not isinstance(node, dict):
+                continue
+            for key in ("price", "lowPrice", "highPrice"):
+                price_value = extract_price_value(node.get(key))
+                if price_value is not None:
+                    return price_value
+            price_spec = node.get("priceSpecification")
+            if isinstance(price_spec, dict):
+                price_value = extract_price_value(price_spec.get("price"))
+                if price_value is not None:
+                    return price_value
+        return None
+
+    fallback_name = None
+    for script in soup.select("script[type='application/ld+json']"):
+        raw = (script.string or script.get_text() or "").strip()
+        if not raw:
+            continue
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            continue
+        for node in _walk(payload):
+            if not isinstance(node, dict):
+                continue
+            node_type = node.get("@type")
+            node_types = node_type if isinstance(node_type, list) else [node_type]
+            if "Product" not in node_types and "offers" not in node and "name" not in node:
+                continue
+
+            name = node.get("name")
+            if isinstance(name, str):
+                name = name.strip()
+            else:
+                name = None
+            if name and fallback_name is None:
+                fallback_name = name
+
+            price = _extract_offer_price(node.get("offers")) if node.get("offers") is not None else None
+            if price is None:
+                price = _extract_offer_price(node)
+            if price is not None:
+                return name, price
+    return fallback_name, None
 
 
 def scrape_with_bs4(url: str):
-    site_key = _get_site_key(url)
+    site_key = get_site_key(url)
     site_cfg = SITE_CONFIGS.get(site_key or "", {})
     title_selectors = site_cfg.get("title_selectors", []) + GENERIC_TITLE_SELECTORS
     price_selectors = site_cfg.get("price_selectors", []) + GENERIC_PRICE_SELECTORS
@@ -175,6 +365,11 @@ def scrape_with_bs4(url: str):
 
     title = _extract_title_from_soup(soup, title_selectors) or "Unknown"
     price = _extract_price_from_soup(soup, price_selectors)
+    ld_title, ld_price = _extract_price_and_title_from_json_ld(soup)
+    if (title == "Unknown" or _looks_like_domain_title(title)) and ld_title:
+        title = ld_title
+    if price is None and ld_price is not None:
+        price = ld_price
 
     if price is None:
         log_event(
@@ -198,7 +393,7 @@ def scrape_with_bs4(url: str):
 
 
 def scrape_with_playwright(url: str):
-    site_key = _get_site_key(url)
+    site_key = get_site_key(url)
     site_cfg = SITE_CONFIGS.get(site_key or "", {})
     title_selectors = site_cfg.get("title_selectors", []) + GENERIC_TITLE_SELECTORS
     price_selectors = site_cfg.get("price_selectors", []) + GENERIC_PRICE_SELECTORS
@@ -209,26 +404,31 @@ def scrape_with_playwright(url: str):
         stage = "playwright_context"
         with sync_playwright() as p:
             stage = "browser_launch"
-            browser = p.chromium.launch(
-                headless=True,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox",
-                    "--disable-dev-shm-usage",
-                ],
-            )
+            use_webkit = site_key == "notebooksbilliger"
+            if use_webkit:
+                browser = p.webkit.launch(headless=True)
+            else:
+                browser = p.chromium.launch(
+                    headless=True,
+                    args=[
+                        "--disable-blink-features=AutomationControlled",
+                        "--no-sandbox",
+                        "--disable-dev-shm-usage",
+                    ],
+                )
 
             stage = "new_context"
             context = browser.new_context(
-                user_agent=HEADERS["User-Agent"],
+                user_agent=WEBKIT_USER_AGENT if use_webkit else HEADERS["User-Agent"],
                 locale="de-DE",
                 timezone_id="Europe/Berlin",
                 viewport={"width": 1366, "height": 900},
             )
-            stage = "add_init_script"
-            context.add_init_script(
-                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
-            )
+            if not use_webkit:
+                stage = "add_init_script"
+                context.add_init_script(
+                    "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+                )
 
             stage = "new_page"
             page = context.new_page()
@@ -242,7 +442,10 @@ def scrape_with_playwright(url: str):
             stage = "goto"
             page.goto(url, timeout=60000)
             stage = "wait_networkidle"
-            page.wait_for_load_state("networkidle")
+            try:
+                page.wait_for_load_state("networkidle", timeout=25000)
+            except PlaywrightTimeoutError:
+                pass
 
             stage = "read_title"
             title = page.title().strip() if page.title() else ""
@@ -253,8 +456,7 @@ def scrape_with_playwright(url: str):
                 candidate = node.get_attribute("content") or node.inner_text()
                 candidate = candidate.strip() if candidate else ""
                 if candidate:
-                    title = candidate
-                    break
+                    title = _choose_better_title(title, candidate) or title
 
             stage = "extract_price_by_selectors"
             price = None
@@ -273,10 +475,21 @@ def scrape_with_playwright(url: str):
                     break
 
             if price is None:
-                stage = "extract_price_from_body"
-                body_text = page.locator("body").inner_text()
-                price = extract_price(body_text)
-                last_seen_price_text = (last_seen_price_text or body_text[:200]).strip()
+                stage = "extract_from_html_json_ld"
+                html = page.content()
+                soup = _build_soup(html)
+                soup_title = _extract_title_from_soup(soup, title_selectors)
+                if soup_title and (not title or _looks_like_domain_title(title)):
+                    title = soup_title
+                price = _extract_price_from_soup(soup, price_selectors)
+                ld_title, ld_price = _extract_price_and_title_from_json_ld(soup)
+                if ld_title and (not title or _looks_like_domain_title(title)):
+                    title = ld_title
+                if price is None and ld_price is not None:
+                    price = ld_price
+                if price is None:
+                    body_text = soup.get_text(" ", strip=True)
+                    last_seen_price_text = (last_seen_price_text or body_text[:200]).strip()
 
             if price is None:
                 log_event(
@@ -323,6 +536,17 @@ def scrape_with_playwright(url: str):
 
 def scrape_product_data(url: str):
     log_event(logger, logging.INFO, "scrape.url.started", url=url)
+    site_key = get_site_key(url)
+    if site_key in UNSUPPORTED_URL_SITES:
+        log_event(
+            logger,
+            logging.WARNING,
+            "scrape.url.unsupported_site",
+            url=url,
+            site_key=site_key,
+            unsupported_sites=get_unsupported_url_sites(),
+        )
+        return None
     result = scrape_with_bs4(url)
 
     if result:

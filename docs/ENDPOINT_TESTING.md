@@ -49,7 +49,21 @@ Create product:
 curl -s -X POST "$BASE_URL/api/products" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name":"RTX 4080","url":"https://www.cyberport.de/?DEMO"}'
+  -d '{"name":"RTX 4080","url":"https://www.cyberport.de/?DEMO","source":"cyberport.de","target_price":449.99}'
+```
+
+Bulk create products from selected category candidates (no re-scrape):
+
+```bash
+curl -s -X POST "$BASE_URL/api/products/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items":[
+      {"name":"ELDEN RING","url":"https://store.steampowered.com/app/1245620/ELDEN_RING/","category":"games","price":59.99,"source":"steam","target_price":44.99},
+      {"name":"ELDEN RING NIGHTREIGN Key kaufen Preisvergleich","url":"https://www.allkeyshop.com/redirection/offer/...","category":"games","price":10.35,"source":"GAMESEAL"}
+    ]
+  }'
 ```
 
 Get one product:
@@ -89,6 +103,15 @@ curl -s "$BASE_URL/api/tracking" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+Set target price for one tracking entry:
+
+```bash
+curl -s -X PATCH "$BASE_URL/api/tracking/1/target-price" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"target_price":39.99}'
+```
+
 Toggle tracking active flag (auto toggle):
 
 ```bash
@@ -107,15 +130,16 @@ curl -s -X DELETE "$BASE_URL/api/tracking/1" \
 
 ## 3) Scraping Endpoint Quick Checks
 
-URL scraping (public endpoint):
+URL scraping + persist product/tracking (protected endpoint):
 
 ```bash
 curl -s -X POST "$BASE_URL/api/scrape/url" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"url":"https://www.alternate.de/...product-url..."}'
+  -d '{"url":"https://www.alternate.de/...product-url...","target_price":450.0}'
 ```
 
-Category scraping (public endpoint, uses `name` as query and returns candidate list):
+Category scraping (uses `name` as query and returns candidate list):
 
 ```bash
 curl -s -X POST "$BASE_URL/api/scrape/category" \

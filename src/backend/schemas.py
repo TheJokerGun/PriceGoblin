@@ -26,6 +26,8 @@ class ProductCreate(BaseModel):
     name: Optional[str]
     url: Optional[str]
     category: Optional[str]
+    source: Optional[str] = None
+    target_price: Optional[float] = None
 
 
 class ProductResponse(BaseModel):
@@ -33,9 +35,45 @@ class ProductResponse(BaseModel):
     name: Optional[str]
     url: Optional[str]
     category: Optional[str]
+    tracking_id: int | None = None
+    is_active: bool | None = None
+    source: str | None = None
+    target_price: float | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ProductSelectionItem(BaseModel):
+    name: str | None = None
+    url: str | None = None
+    category: str | None = None
+    price: str | float | None = None
+    source: str | None = None
+    target_price: float | None = None
+
+
+class ProductCategorySelectionCreate(BaseModel):
+    items: list[ProductSelectionItem]
+
+
+class ProductCategorySelectionResult(BaseModel):
+    product_id: int
+    tracking_id: int
+    name: str | None = None
+    url: str | None = None
+    category: str | None = None
+    source: str | None = None
+    target_price: float | None = None
+    is_active: bool
+    created_product: bool
+    created_tracking: bool
+    seeded_price: float | None = None
+
+
+class ProductCategorySelectionResponse(BaseModel):
+    count: int
+    data: list[ProductCategorySelectionResult]
 
 
 # -------- PRICES --------
@@ -55,6 +93,8 @@ class TrackingResponse(BaseModel):
     user_id: int
     product_id: int
     is_active: bool
+    source: str | None = None
+    target_price: float | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -63,16 +103,22 @@ class TrackingResponse(BaseModel):
 class TrackingActiveUpdate(BaseModel):
     is_active: bool | None = None
 
+
+class TrackingTargetPriceUpdate(BaseModel):
+    target_price: float | None = None
+
 # -------- SCRAPER --------
 
 class ScrapeRequest(BaseModel):
     name: str | None = None
     url: str | None = None
     category: str | None = None
+    target_price: float | None = None
 
 
 class ScrapeUrlRequest(BaseModel):
     url: str
+    target_price: float | None = None
 
 
 class ScrapeCategoryRequest(BaseModel):

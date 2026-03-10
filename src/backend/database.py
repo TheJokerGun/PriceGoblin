@@ -30,6 +30,7 @@ def init_db() -> None:
     from . import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
     _migrate_tracking_drop_url()
+    _migrate_tracking_add_fields()
     _backfill_tracking_from_products()
     _migrate_products_drop_user_id()
 
@@ -78,6 +79,23 @@ def _migrate_tracking_drop_url() -> None:
             conn.execute(text("DROP TABLE tracking"))
             conn.execute(text("ALTER TABLE tracking_new RENAME TO tracking"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tracking_id ON tracking (id)"))
+
+
+def _migrate_tracking_add_fields() -> None:
+    with engine.begin() as conn:
+        table_exists = conn.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='tracking'")
+        ).first()
+        if not table_exists:
+            return
+
+        columns = conn.execute(text("PRAGMA table_info(tracking)")).mappings().all()
+        existing_column_names = {col.get("name") for col in columns}
+
+        if "source" not in existing_column_names:
+            conn.execute(text("ALTER TABLE tracking ADD COLUMN source VARCHAR"))
+        if "target_price" not in existing_column_names:
+            conn.execute(text("ALTER TABLE tracking ADD COLUMN target_price FLOAT"))
 
 
 def _backfill_tracking_from_products() -> None:

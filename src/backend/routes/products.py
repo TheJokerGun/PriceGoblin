@@ -1,7 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..schemas import PriceResponse, ProductCreate, ProductResponse
+from ..schemas import (
+    PriceResponse,
+    ProductCategorySelectionCreate,
+    ProductCategorySelectionResponse,
+    ProductCreate,
+    ProductResponse,
+)
 from ..services import auth_service, product_service
 
 router = APIRouter(prefix="/api/products", tags=["Products"])
@@ -19,6 +25,17 @@ def create_product(
             detail="At least one of name, url, or category must be provided"
         )
     return product_service.create_product(db, current_user.id, product)
+
+
+@router.post("/bulk", response_model=ProductCategorySelectionResponse)
+def create_products_bulk_from_category(
+    payload: ProductCategorySelectionCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(auth_service.get_current_user),
+) -> ProductCategorySelectionResponse:
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="items must not be empty")
+    return product_service.create_products_from_category_selection(db, current_user.id, payload)
 
 
 @router.get("", response_model=list[ProductResponse])
