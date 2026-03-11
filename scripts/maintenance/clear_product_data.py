@@ -13,6 +13,7 @@ import sqlite3
 from pathlib import Path
 
 CONFIRM_PHRASE = "CLEAR_PRODUCTS"
+CONFIRM_PHRASE_WITH_USERS = "CLEAR_PRODUCTS_AND_USERS"
 
 
 def parse_args() -> argparse.Namespace:
@@ -22,12 +23,21 @@ def parse_args() -> argparse.Namespace:
         help=f"Type {CONFIRM_PHRASE} to proceed",
         required=True,
     )
+    parser.add_argument(
+        "--include-users",
+        action="store_true",
+        help=f"Also clear users (requires {CONFIRM_PHRASE_WITH_USERS}).",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    if args.confirm != CONFIRM_PHRASE:
+    if args.include_users:
+        if args.confirm != CONFIRM_PHRASE_WITH_USERS:
+            print("Confirmation phrase mismatch for users. No changes made.")
+            return 1
+    elif args.confirm != CONFIRM_PHRASE:
         print("Confirmation phrase mismatch. No changes made.")
         return 1
 
@@ -37,13 +47,16 @@ def main() -> int:
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute("PRAGMA foreign_keys=OFF")
-    for table in ("price_entries", "tracking", "products"):
+    tables = ["price_entries", "tracking", "products"]
+    if args.include_users:
+        tables.append("users")
+    for table in tables:
         cur.execute(f"DELETE FROM {table}")
     conn.commit()
     cur.execute("PRAGMA foreign_keys=ON")
     conn.close()
 
-    print("Cleared: price_entries, tracking, products")
+    print(f"Cleared: {', '.join(tables)}")
     return 0
 
 

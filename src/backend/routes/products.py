@@ -24,7 +24,12 @@ def create_product(
             status_code=400,
             detail="At least one of name, url, or category must be provided"
         )
-    return product_service.create_product(db, current_user.id, product)
+    return product_service.create_product(
+        db,
+        current_user.id,
+        product,
+        locale=getattr(current_user, "locale", None),
+    )
 
 
 @router.post("/bulk", response_model=ProductCategorySelectionResponse)
@@ -117,7 +122,12 @@ def check_product_price(
     db: Session = Depends(get_db),
     current_user=Depends(auth_service.get_current_user)
 ) -> PriceResponse:
-    result = product_service.check_product_price(db, current_user.id, product_id)
+    result = product_service.check_product_price(
+        db,
+        current_user.id,
+        product_id,
+        locale=getattr(current_user, "locale", None),
+    )
     if not result:
         raise HTTPException(status_code=404, detail="Product not found")
     return PriceResponse(

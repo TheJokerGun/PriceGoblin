@@ -25,6 +25,7 @@ def scrape_url(
         current_user.id,
         request.url,
         target_price=request.target_price,
+        locale=getattr(current_user, "locale", None),
     )
     latest_price = product_service.get_latest_product_price(db, product.id)
     return ScrapeProductResponse(
@@ -39,8 +40,11 @@ def scrape_url(
 
 
 @router.post("/category", response_model=ScrapeCategoryResponse)
-def scrape_category(request: ScrapeCategoryRequest) -> ScrapeCategoryResponse:
-    return scraper_service.scrape_category(request)
+def scrape_category(
+    request: ScrapeCategoryRequest,
+    current_user=Depends(auth_service.get_current_user),
+) -> ScrapeCategoryResponse:
+    return scraper_service.scrape_category(request, locale=getattr(current_user, "locale", None))
 
 
 @router.post("", response_model=ScrapeResponse)
@@ -58,6 +62,7 @@ def scrape(
         )
     if request.category and not request.url:
         return scraper_service.scrape_category(
-            ScrapeCategoryRequest(category=request.category, name=request.name, limit=10)
+            ScrapeCategoryRequest(category=request.category, name=request.name, limit=10),
+            locale=getattr(current_user, "locale", None),
         )
-    return scraper_service.scrape(request)
+    return scraper_service.scrape(request, locale=getattr(current_user, "locale", None))

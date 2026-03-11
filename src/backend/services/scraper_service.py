@@ -23,7 +23,7 @@ from ..logging_utils import configure_logging, format_exception_detail, log_even
 logger = configure_logging()
 
 
-def scrape_url(request: ScrapeUrlRequest) -> ScrapeProductResponse:
+def scrape_url(request: ScrapeUrlRequest, locale: str | None = None) -> ScrapeProductResponse:
     site_key = get_site_key(request.url)
     log_event(
         logger,
@@ -52,7 +52,7 @@ def scrape_url(request: ScrapeUrlRequest) -> ScrapeProductResponse:
             },
         )
 
-    result = scrape_product_data(request.url)
+    result = scrape_product_data(request.url, locale=locale)
     current_time = datetime.now(timezone.utc)
 
     if not result:
@@ -92,7 +92,9 @@ def scrape_url(request: ScrapeUrlRequest) -> ScrapeProductResponse:
     )
 
 
-def scrape_category(request: ScrapeCategoryRequest) -> ScrapeCategoryResponse:
+def scrape_category(
+    request: ScrapeCategoryRequest, locale: str | None = None
+) -> ScrapeCategoryResponse:
     category = request.category.strip().lower()
     limit = max(1, min(request.limit, 50))
 
@@ -104,7 +106,7 @@ def scrape_category(request: ScrapeCategoryRequest) -> ScrapeCategoryResponse:
         category=category,
     )
 
-    scraper = CategoryScraper()
+    scraper = CategoryScraper(locale=locale)
     try:
         results = scraper.scrape(category, request.name)
     except Exception as exc:
@@ -153,14 +155,15 @@ def scrape_category(request: ScrapeCategoryRequest) -> ScrapeCategoryResponse:
     )
 
 
-def scrape(request: ScrapeRequest) -> ScrapeResponse:
+def scrape(request: ScrapeRequest, locale: str | None = None) -> ScrapeResponse:
     # Legacy combined endpoint compatibility.
     if request.url and not request.category:
-        return scrape_url(ScrapeUrlRequest(url=request.url))
+        return scrape_url(ScrapeUrlRequest(url=request.url), locale=locale)
 
     if request.category and not request.url:
         return scrape_category(
-            ScrapeCategoryRequest(category=request.category, name=request.name, limit=10)
+            ScrapeCategoryRequest(category=request.category, name=request.name, limit=10),
+            locale=locale,
         )
 
     # Invalid input

@@ -9,6 +9,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 from ..logging_utils import configure_logging, format_exception_detail, log_event
+from ..locale_utils import build_accept_language, locale_region, resolve_locale
 from ..price_utils import extract_price_value, is_free_price_text
 
 logger = configure_logging()
@@ -17,7 +18,6 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/121.0.0.0 Safari/537.36",
-    "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
     "Referer": "https://www.google.com/",
 }
 
@@ -27,6 +27,12 @@ IDEALO_WEBKIT_USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
 )
+
+
+def _build_headers(locale: str | None) -> dict[str, str]:
+    headers = HEADERS.copy()
+    headers["Accept-Language"] = build_accept_language(locale)
+    return headers
 
 
 @dataclass(frozen=True)
@@ -257,6 +263,11 @@ CATEGORY_PROVIDERS: dict[str, list[ProviderConfig]] = {
 
 
 class CategoryScraper:
+    def __init__(self, locale: str | None = None) -> None:
+        self.locale = resolve_locale(locale)
+        self.locale_region = locale_region(self.locale) or "DE"
+        self.headers = _build_headers(locale)
+
     @staticmethod
     def _build_soup(html: str) -> BeautifulSoup:
         try:
@@ -339,7 +350,7 @@ class CategoryScraper:
         products: list[dict] = []
 
         try:
-            response = requests.get(target_url, headers=HEADERS, timeout=20)
+            response = requests.get(target_url, headers=self.headers, timeout=20)
             if response.status_code != 200:
                 log_event(
                     logger,
@@ -454,15 +465,15 @@ class CategoryScraper:
                 stage = "new_context"
                 context = browser.new_context(
                     user_agent=IDEALO_WEBKIT_USER_AGENT,
-                    locale="de-DE",
+                    locale=self.locale,
                     timezone_id="Europe/Berlin",
                     viewport={"width": 1366, "height": 900},
                 )
                 page = context.new_page()
                 page.set_extra_http_headers(
                     {
-                        "Accept-Language": HEADERS["Accept-Language"],
-                        "Referer": HEADERS["Referer"],
+                        "Accept-Language": self.headers["Accept-Language"],
+                        "Referer": self.headers["Referer"],
                     }
                 )
 
@@ -637,8 +648,8 @@ class CategoryScraper:
                 )
                 stage = "new_context"
                 context = browser.new_context(
-                    user_agent=HEADERS["User-Agent"],
-                    locale="de-DE",
+                    user_agent=self.headers["User-Agent"],
+                    locale=self.locale,
                     timezone_id="Europe/Berlin",
                     viewport={"width": 1366, "height": 900},
                 )
@@ -648,8 +659,8 @@ class CategoryScraper:
                 page = context.new_page()
                 page.set_extra_http_headers(
                     {
-                        "Accept-Language": HEADERS["Accept-Language"],
-                        "Referer": HEADERS["Referer"],
+                        "Accept-Language": self.headers["Accept-Language"],
+                        "Referer": self.headers["Referer"],
                     }
                 )
 
@@ -804,7 +815,7 @@ class CategoryScraper:
                     "exclude": {"channelExclusion": 0},
                 },
             },
-            "context": {"cart": {}, "shippingCountry": "DE", "userProfile": {}},
+            "context": {"cart": {}, "shippingCountry": self.locale_region, "userProfile": {}},
             "settings": {"useFuzzySearch": True, "didYouMean": {}},
             "sort": {},
         }
@@ -812,8 +823,8 @@ class CategoryScraper:
             "Content-Type": "application/json",
             "Referer": "https://www.tcgplayer.com/",
             "Origin": "https://www.tcgplayer.com",
-            "User-Agent": HEADERS["User-Agent"],
-            "Accept-Language": HEADERS["Accept-Language"],
+            "User-Agent": self.headers["User-Agent"],
+            "Accept-Language": self.headers["Accept-Language"],
         }
 
         try:
@@ -948,8 +959,8 @@ class CategoryScraper:
                 )
                 stage = "new_context"
                 context = browser.new_context(
-                    user_agent=HEADERS["User-Agent"],
-                    locale="de-DE",
+                    user_agent=self.headers["User-Agent"],
+                    locale=self.locale,
                     timezone_id="Europe/Berlin",
                     viewport={"width": 1366, "height": 900},
                 )
@@ -959,8 +970,8 @@ class CategoryScraper:
                 page = context.new_page()
                 page.set_extra_http_headers(
                     {
-                        "Accept-Language": HEADERS["Accept-Language"],
-                        "Referer": HEADERS["Referer"],
+                        "Accept-Language": self.headers["Accept-Language"],
+                        "Referer": self.headers["Referer"],
                     }
                 )
 
@@ -1099,7 +1110,7 @@ class CategoryScraper:
         target_url = provider.search_url_template.format(query=quote_plus(query))
 
         try:
-            response = requests.get(target_url, headers=HEADERS, timeout=20)
+            response = requests.get(target_url, headers=self.headers, timeout=20)
             if response.status_code != 200:
                 log_event(
                     logger,
@@ -1147,7 +1158,7 @@ class CategoryScraper:
             offers: list[dict] = []
 
             for score, game_url in candidates[:8]:
-                game_resp = requests.get(game_url, headers=HEADERS, timeout=20)
+                game_resp = requests.get(game_url, headers=self.headers, timeout=20)
                 if game_resp.status_code != 200:
                     continue
                 game_soup = self._build_soup(game_resp.text)

@@ -9,6 +9,7 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 from ..logging_utils import configure_logging, format_exception_detail, log_event
+from ..locale_utils import build_accept_language, resolve_locale
 from ..price_utils import extract_price_value
 
 logger = configure_logging()
@@ -22,7 +23,6 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/121.0.0.0 Safari/537.36",
-    "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
     "Referer": "https://www.google.com/",
 }
 
@@ -316,6 +316,12 @@ def _build_soup(html: str) -> BeautifulSoup:
         return BeautifulSoup(html, "html.parser")
 
 
+def _build_headers(locale: str | None) -> dict[str, str]:
+    headers = HEADERS.copy()
+    headers["Accept-Language"] = build_accept_language(locale)
+    return headers
+
+
 def get_site_key(url: str) -> str | None:
     host = urlparse(url).netloc.lower()
     if "geizhals." in host:
@@ -594,16 +600,17 @@ def _extract_media_from_json_ld(
     return fallback_name, None, fallback_image
 
 
-def scrape_with_bs4(url: str):
+def scrape_with_bs4(url: str, locale: str | None = None):
     site_key = get_site_key(url)
     site_cfg = SITE_CONFIGS.get(site_key or "", {})
     title_selectors = site_cfg.get("title_selectors", []) + GENERIC_TITLE_SELECTORS
     price_selectors = site_cfg.get("price_selectors", []) + GENERIC_PRICE_SELECTORS
     image_selectors = site_cfg.get("image_selectors", []) + GENERIC_IMAGE_SELECTORS
 
+    headers = _build_headers(locale)
     session = requests.Session()
     try:
-        response = session.get(url, headers=HEADERS, timeout=20, allow_redirects=True)
+        response = session.get(url, headers=headers, timeout=20, allow_redirects=True)
     except requests.RequestException as exc:
         log_event(
             logger,
@@ -665,12 +672,14 @@ def scrape_with_bs4(url: str):
     return {"name": title, "price": price, "image_url": image_url, "url": url}
 
 
-def scrape_with_playwright(url: str):
+def scrape_with_playwright(url: str, locale: str | None = None):
     site_key = get_site_key(url)
     site_cfg = SITE_CONFIGS.get(site_key or "", {})
     title_selectors = site_cfg.get("title_selectors", []) + GENERIC_TITLE_SELECTORS
     price_selectors = site_cfg.get("price_selectors", []) + GENERIC_PRICE_SELECTORS
     image_selectors = site_cfg.get("image_selectors", []) + GENERIC_IMAGE_SELECTORS
+    headers = _build_headers(locale)
+    resolved_locale = resolve_locale(locale)
 
     stage = "init"
     browser = None
@@ -693,8 +702,8 @@ def scrape_with_playwright(url: str):
 
             stage = "new_context"
             context = browser.new_context(
-                user_agent=WEBKIT_USER_AGENT if use_webkit else HEADERS["User-Agent"],
-                locale="de-DE",
+                user_agent=WEBKIT_USER_AGENT if use_webkit else headers["User-Agent"],
+                locale=resolved_locale,
                 timezone_id="Europe/Berlin",
                 viewport={"width": 1366, "height": 900},
             )
@@ -708,8 +717,8 @@ def scrape_with_playwright(url: str):
             page = context.new_page()
             page.set_extra_http_headers(
                 {
-                    "Accept-Language": HEADERS["Accept-Language"],
-                    "Referer": HEADERS["Referer"],
+                    "Accept-Language": headers["Accept-Language"],
+                    "Referer": headers["Referer"],
                 }
             )
 
@@ -819,7 +828,7 @@ def scrape_with_playwright(url: str):
                 pass
 
 
-def scrape_product_data(url: str):
+def scrape_product_data(url: str, locale: str | None = None):
     log_event(logger, logging.INFO, "scrape.url.started", url=url)
     site_key = get_site_key(url)
     if site_key in UNSUPPORTED_URL_SITES:
@@ -832,7 +841,7 @@ def scrape_product_data(url: str):
             unsupported_sites=get_unsupported_url_sites(),
         )
         return None
-    result = scrape_with_bs4(url)
+    result = scrape_with_bs4(url, locale=locale)
 
     if result:
         result.setdefault("url", url)
@@ -840,7 +849,7 @@ def scrape_product_data(url: str):
         return result
 
     log_event(logger, logging.INFO, "scrape.url.fallback_playwright", url=url)
-    playwright_result = scrape_with_playwright(url)
+    playwright_result = scrape_with_playwright(url, locale=locale)
     if playwright_result:
         log_event(logger, logging.INFO, "scrape.url.success", url=url, strategy="playwright")
     else:

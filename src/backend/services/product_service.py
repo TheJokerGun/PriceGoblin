@@ -145,8 +145,9 @@ def create_product_from_scraped_url(
     url: str,
     target_price: float | None = None,
     source: str | None = None,
+    locale: str | None = None,
 ) -> Product:
-    scraped = scraper_service.scrape_url(ScrapeUrlRequest(url=url))
+    scraped = scraper_service.scrape_url(ScrapeUrlRequest(url=url), locale=locale)
     normalized_url = (scraped.url or url).strip()
     name = (scraped.name or "").strip() or None
     category = (scraped.category or "").strip() or None
@@ -228,7 +229,9 @@ def create_product_from_scraped_url(
     return _attach_tracking_metadata(product, tracking)
 
 
-def create_product(db: Session, user_id: int, data: ProductCreate) -> Product:
+def create_product(
+    db: Session, user_id: int, data: ProductCreate, locale: str | None = None
+) -> Product:
     name = data.name
     url = data.url
     image_url = data.image_url
@@ -238,7 +241,9 @@ def create_product(db: Session, user_id: int, data: ProductCreate) -> Product:
     # If a URL is provided, validate/scrape it and use scraped values as fallback.
     if data.url:
         try:
-            scraped_data = scraper_service.scrape_url(ScrapeUrlRequest(url=data.url))
+            scraped_data = scraper_service.scrape_url(
+                ScrapeUrlRequest(url=data.url), locale=locale
+            )
         except HTTPException:
             scraped_data = None
         if isinstance(scraped_data, ScrapeProductResponse):
@@ -386,14 +391,16 @@ def get_product_prices(db: Session, user_id: int, product_id: int) -> List[Price
     ).all()
 
 
-def check_product_price(db: Session, user_id: int, product_id: int) -> PriceEntry | None:
+def check_product_price(
+    db: Session, user_id: int, product_id: int, locale: str | None = None
+) -> PriceEntry | None:
     product = get_product_by_id(db, user_id, product_id)
     if not product:
         return None
 
     scraped_price: float | None = None
     if product.url:
-        scraped_data = scrape_product_data(product.url)
+        scraped_data = scrape_product_data(product.url, locale=locale)
         if scraped_data and isinstance(scraped_data.get("price"), (int, float)):
             scraped_price = float(scraped_data["price"])
 

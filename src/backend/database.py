@@ -29,6 +29,7 @@ Base = declarative_base()
 def init_db() -> None:
     from . import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
+    _migrate_users_add_locale()
     _migrate_tracking_drop_url()
     _migrate_tracking_add_fields()
     _backfill_tracking_from_products()
@@ -189,6 +190,20 @@ def _migrate_products_add_image_url() -> None:
         existing_column_names = {col.get("name") for col in columns}
         if "image_url" not in existing_column_names:
             conn.execute(text("ALTER TABLE products ADD COLUMN image_url VARCHAR"))
+
+
+def _migrate_users_add_locale() -> None:
+    with engine.begin() as conn:
+        table_exists = conn.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        ).first()
+        if not table_exists:
+            return
+
+        columns = conn.execute(text("PRAGMA table_info(users)")).mappings().all()
+        existing_column_names = {col.get("name") for col in columns}
+        if "locale" not in existing_column_names:
+            conn.execute(text("ALTER TABLE users ADD COLUMN locale VARCHAR"))
 
 
 def get_db() -> Generator[Session, None, None]:

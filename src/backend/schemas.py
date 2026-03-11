@@ -8,11 +8,13 @@ from typing import Literal, Optional
 class LoginRequest(BaseModel):
     email: str
     password: str
+    locale: str | None = None
 
 
 class RegisterRequest(BaseModel):
     email: str
     password: str
+    locale: str | None = None
 
 
 class TokenResponse(BaseModel):
