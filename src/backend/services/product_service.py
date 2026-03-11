@@ -56,6 +56,7 @@ def create_products_from_category_selection(
         name = (item.name or "").strip() or None
         url = (item.url or "").strip() or None
         category = (item.category or "").strip() or None
+        image_url = (item.image_url or "").strip() or None
         source = (item.source or "").strip() or _infer_source_from_url(url)
         target_price = _extract_price_value(item.target_price)
 
@@ -69,6 +70,7 @@ def create_products_from_category_selection(
                 name=name,
                 url=url,
                 category=category,
+                image_url=image_url,
                 created_at=datetime.now(timezone.utc),
             )
             db.add(product)
@@ -79,6 +81,8 @@ def create_products_from_category_selection(
                 product.name = name
             if not product.category and category:
                 product.category = category
+            if not product.image_url and image_url:
+                product.image_url = image_url
 
         tracking = (
             db.query(Tracking)
@@ -121,6 +125,7 @@ def create_products_from_category_selection(
                 name=product.name,
                 url=product.url,
                 category=product.category,
+                image_url=product.image_url,
                 source=tracking.source,
                 target_price=tracking.target_price,
                 is_active=tracking.is_active,
@@ -146,6 +151,7 @@ def create_product_from_scraped_url(
     name = (scraped.name or "").strip() or None
     category = (scraped.category or "").strip() or None
     scraped_price = float(scraped.price) if isinstance(scraped.price, (int, float)) else None
+    scraped_image_url = (scraped.image_url or "").strip() or None
     normalized_source = (source or "").strip() or _infer_source_from_url(normalized_url)
 
     # Match either the submitted URL or the final normalized URL to reduce duplicates.
@@ -166,6 +172,7 @@ def create_product_from_scraped_url(
             name=name,
             url=normalized_url,
             category=category,
+            image_url=scraped_image_url,
             created_at=datetime.now(timezone.utc),
         )
         db.add(product)
@@ -178,6 +185,8 @@ def create_product_from_scraped_url(
             product.url = normalized_url
         if not product.category and category:
             product.category = category
+        if not product.image_url and scraped_image_url:
+            product.image_url = scraped_image_url
 
     if scraped_price is not None:
         has_price_history = (
@@ -222,6 +231,7 @@ def create_product_from_scraped_url(
 def create_product(db: Session, user_id: int, data: ProductCreate) -> Product:
     name = data.name
     url = data.url
+    image_url = data.image_url
     scraped_price: float | None = None
     source = (data.source or "").strip() or _infer_source_from_url(url)
 
@@ -237,6 +247,8 @@ def create_product(db: Session, user_id: int, data: ProductCreate) -> Product:
             url = scraped_data.url or data.url
             if isinstance(scraped_data.price, (int, float)):
                 scraped_price = float(scraped_data.price)
+            if not image_url and getattr(scraped_data, "image_url", None):
+                image_url = scraped_data.image_url
             source = (data.source or "").strip() or _infer_source_from_url(url)
 
     product = _find_product_by_url(db, url)
@@ -246,6 +258,7 @@ def create_product(db: Session, user_id: int, data: ProductCreate) -> Product:
             name=name,
             url=url,
             category=data.category,
+            image_url=image_url,
             created_at=datetime.now(timezone.utc)
         )
         db.add(product)
@@ -257,6 +270,8 @@ def create_product(db: Session, user_id: int, data: ProductCreate) -> Product:
             product.name = name
         if not product.category and data.category:
             product.category = data.category
+        if not product.image_url and image_url:
+            product.image_url = image_url
 
     # Persist first known price on create, or if an existing shared product has no history yet.
     if scraped_price is not None:

@@ -88,6 +88,7 @@ def scrape_url(request: ScrapeUrlRequest) -> ScrapeProductResponse:
         category=None,
         created_at=current_time,
         price=result.get("price"),
+        image_url=result.get("image_url"),
     )
 
 

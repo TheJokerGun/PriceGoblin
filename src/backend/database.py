@@ -33,6 +33,7 @@ def init_db() -> None:
     _migrate_tracking_add_fields()
     _backfill_tracking_from_products()
     _migrate_products_drop_user_id()
+    _migrate_products_add_image_url()
 
 
 def _migrate_tracking_drop_url() -> None:
@@ -139,6 +140,7 @@ def _migrate_products_drop_user_id() -> None:
 
         columns = conn.execute(text("PRAGMA table_info(products)")).mappings().all()
         has_user_id_column = any(col.get("name") == "user_id" for col in columns)
+        has_image_url_column = any(col.get("name") == "image_url" for col in columns)
         if not has_user_id_column:
             return
 
@@ -152,6 +154,7 @@ def _migrate_products_drop_user_id() -> None:
                     name VARCHAR,
                     url VARCHAR,
                     category VARCHAR,
+                    image_url VARCHAR,
                     created_at DATETIME
                 )
                 """
@@ -159,9 +162,11 @@ def _migrate_products_drop_user_id() -> None:
         )
         conn.execute(
             text(
-                """
-                INSERT INTO products_new (id, name, url, category, created_at)
-                SELECT id, name, url, category, created_at
+                f"""
+                INSERT INTO products_new (id, name, url, category, image_url, created_at)
+                SELECT id, name, url, category,
+                       {"image_url" if has_image_url_column else "NULL"},
+                       created_at
                 FROM products
                 """
             )
@@ -170,6 +175,20 @@ def _migrate_products_drop_user_id() -> None:
         conn.execute(text("ALTER TABLE products_new RENAME TO products"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_products_id ON products (id)"))
         conn.execute(text("PRAGMA foreign_keys=ON"))
+
+
+def _migrate_products_add_image_url() -> None:
+    with engine.begin() as conn:
+        table_exists = conn.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='products'")
+        ).first()
+        if not table_exists:
+            return
+
+        columns = conn.execute(text("PRAGMA table_info(products)")).mappings().all()
+        existing_column_names = {col.get("name") for col in columns}
+        if "image_url" not in existing_column_names:
+            conn.execute(text("ALTER TABLE products ADD COLUMN image_url VARCHAR"))
 
 
 def get_db() -> Generator[Session, None, None]:

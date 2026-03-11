@@ -26,6 +26,7 @@ class ProductCreate(BaseModel):
     name: Optional[str]
     url: Optional[str]
     category: Optional[str]
+    image_url: Optional[str] = None
     source: Optional[str] = None
     target_price: Optional[float] = None
 
@@ -35,6 +36,7 @@ class ProductResponse(BaseModel):
     name: Optional[str]
     url: Optional[str]
     category: Optional[str]
+    image_url: str | None = None
     tracking_id: int | None = None
     is_active: bool | None = None
     source: str | None = None
@@ -49,6 +51,7 @@ class ProductSelectionItem(BaseModel):
     url: str | None = None
     category: str | None = None
     price: str | float | None = None
+    image_url: str | None = None
     source: str | None = None
     target_price: float | None = None
 
@@ -63,6 +66,7 @@ class ProductCategorySelectionResult(BaseModel):
     name: str | None = None
     url: str | None = None
     category: str | None = None
+    image_url: str | None = None
     source: str | None = None
     target_price: float | None = None
     is_active: bool
@@ -135,11 +139,13 @@ class ScrapeProductResponse(BaseModel):
     category: str | None = None
     created_at: datetime
     price: float | None = None
+    image_url: str | None = None
 
 
 class ScrapeCategoryItem(BaseModel):
     name: str
     price: str | float | None = None
+    image_url: str | None = None
     source: str | None = None
     url: str | None = None
 

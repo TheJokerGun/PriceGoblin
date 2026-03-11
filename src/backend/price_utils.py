@@ -49,6 +49,13 @@ def extract_price_value(value: str | float | int | None) -> float | None:
 
     match = re.search(r"(\d{1,3}(?:[.,\s]\d{3})*[.,]\d{2}|\d+[.,]\d{2})", value)
     if not match:
+        # Fallback for integer-like prices (often in JSON-LD)
+        compact = re.sub(r"[\\s,\\.]", "", value)
+        if compact.isdigit():
+            try:
+                return float(compact)
+            except ValueError:
+                return None
         return None
     raw = match.group(1).replace(" ", "")
     if "." in raw and "," in raw:

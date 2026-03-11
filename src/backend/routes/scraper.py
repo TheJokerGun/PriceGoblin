@@ -34,6 +34,7 @@ def scrape_url(
         category=product.category,
         created_at=product.created_at,
         price=latest_price.price if latest_price else None,
+        image_url=product.image_url,
     )
 
 

@@ -42,6 +42,52 @@ def _extract_price_value(text: str | None) -> float | None:
     return extract_price_value(text)
 
 
+def _normalize_image_url(candidate: str | None, base_url: str | None) -> str | None:
+    if not candidate:
+        return None
+    value = candidate.strip()
+    if not value or value.startswith("data:"):
+        return None
+    if value.startswith("//"):
+        value = f"https:{value}"
+    if base_url and not value.startswith("http"):
+        value = urljoin(base_url, value)
+    if value.startswith("http"):
+        return value
+    return None
+
+
+def _extract_image_from_bs4(node, base_url: str | None) -> str | None:
+    img = node.select_one("img")
+    if not img:
+        return None
+    for attr in ("data-src", "data-lazy", "data-original", "data-old-hires", "src"):
+        url = _normalize_image_url(img.get(attr), base_url)
+        if url:
+            return url
+    srcset = img.get("srcset") or img.get("data-srcset")
+    if srcset:
+        first = srcset.split(",")[0].strip().split(" ")[0]
+        return _normalize_image_url(first, base_url)
+    return None
+
+
+def _extract_image_from_playwright(row, base_url: str | None) -> str | None:
+    img_loc = row.locator("img")
+    if img_loc.count() == 0:
+        return None
+    img = img_loc.first
+    for attr in ("data-src", "data-lazy", "data-original", "data-old-hires", "src"):
+        url = _normalize_image_url(img.get_attribute(attr), base_url)
+        if url:
+            return url
+    srcset = img.get_attribute("srcset") or img.get_attribute("data-srcset")
+    if srcset:
+        first = srcset.split(",")[0].strip().split(" ")[0]
+        return _normalize_image_url(first, base_url)
+    return None
+
+
 def _tokenize(text: str) -> list[str]:
     return [token for token in re.findall(r"[a-z0-9]+", text.lower()) if len(token) >= 2]
 
@@ -335,6 +381,7 @@ class CategoryScraper:
                 normalized_price: str | float | None = parsed_price if parsed_price is not None else raw_price
                 if is_free_price_text(raw_price):
                     normalized_price = "Free"
+                image_url = _extract_image_from_bs4(row, target_url)
 
                 link = title_node.get("href") if hasattr(title_node, "get") else None
                 if not link and hasattr(row, "get"):
@@ -349,6 +396,7 @@ class CategoryScraper:
                     {
                         "name": raw_name,
                         "price": normalized_price,
+                        "image_url": image_url,
                         "source": provider.name,
                         "url": link or target_url,
                         "relevance_score": relevance,
@@ -500,11 +548,13 @@ class CategoryScraper:
                     if final_url in seen:
                         continue
                     seen.add(final_url)
+                    image_url = _extract_image_from_playwright(row, page.url)
 
                     products.append(
                         {
                             "name": raw_name,
                             "price": normalized_price,
+                            "image_url": image_url,
                             "source": provider.name,
                             "url": final_url,
                             "relevance_score": relevance,
@@ -668,11 +718,13 @@ class CategoryScraper:
                     if final_url in seen:
                         continue
                     seen.add(final_url)
+                    image_url = _extract_image_from_playwright(row, page.url)
 
                     products.append(
                         {
                             "name": raw_name,
                             "price": normalized_price,
+                            "image_url": image_url,
                             "source": provider.name,
                             "url": final_url,
                             "relevance_score": relevance,
@@ -812,8 +864,11 @@ class CategoryScraper:
 
                 product_id = row.get("productId")
                 item_url = target_url
+                image_url = None
                 if isinstance(product_id, (int, float)):
-                    item_url = f"https://www.tcgplayer.com/product/{int(product_id)}"
+                    product_id_int = int(product_id)
+                    item_url = f"https://www.tcgplayer.com/product/{product_id_int}"
+                    image_url = f"https://tcgplayer-cdn.tcgplayer.com/product/{product_id_int}_in_1000x1000.jpg"
 
                 score = row.get("score")
                 if not isinstance(score, (int, float)):
@@ -823,6 +878,7 @@ class CategoryScraper:
                     {
                         "name": raw_name,
                         "price": float(price),
+                        "image_url": image_url,
                         "source": provider.name,
                         "url": item_url,
                         "relevance_score": relevance,
@@ -983,12 +1039,14 @@ class CategoryScraper:
                         if parsed_price is None:
                             continue
                         normalized_price: str | float = "Free" if is_free_price_text(price_text) else parsed_price
+                        image_url = _extract_image_from_playwright(card, game_url)
 
                         seen_urls.add(item_url)
                         products.append(
                             {
                                 "name": name,
                                 "price": normalized_price,
+                                "image_url": image_url,
                                 "source": provider.name,
                                 "url": item_url,
                                 "relevance_score": relevance,
@@ -1101,6 +1159,10 @@ class CategoryScraper:
                 if not game_title and game_soup.title:
                     game_title = game_soup.title.get_text(" ", strip=True)
                 game_title = game_title or game_url
+                image_url = None
+                og_image = game_soup.select_one("meta[property='og:image']")
+                if og_image and og_image.get("content"):
+                    image_url = og_image.get("content").strip()
 
                 page_offers: list[dict] = []
                 for offer_node in game_soup.select("a.recomended_offers"):
@@ -1119,6 +1181,7 @@ class CategoryScraper:
                         {
                             "name": game_title,
                             "price": normalized_price,
+                            "image_url": image_url,
                             "source": merchant,
                             "url": redirect_url,
                             "relevance_score": score,

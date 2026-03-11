@@ -1,5 +1,6 @@
 import logging
 import json
+import re
 from urllib.parse import urlparse
 
 import requests
@@ -25,7 +26,7 @@ HEADERS = {
     "Referer": "https://www.google.com/",
 }
 
-UNSUPPORTED_URL_SITES = {"etsy"}
+UNSUPPORTED_URL_SITES = {"etsy", "cardmarket"}
 
 SITE_CONFIGS: dict[str, dict[str, list[str]]] = {
     "cyberport": {
@@ -35,6 +36,12 @@ SITE_CONFIGS: dict[str, dict[str, list[str]]] = {
             "div.text-h2[data-test-id='product-price']",
             "[itemprop='price']",
             "meta[itemprop='price']",
+        ],
+        "image_selectors": [
+            "meta[property='og:image']",
+            "meta[property='og:image:secure_url']",
+            "img[data-test-id='product-image']",
+            "img",
         ],
     },
     "alternate": {
@@ -46,6 +53,10 @@ SITE_CONFIGS: dict[str, dict[str, list[str]]] = {
             "[itemprop='price']",
             "meta[itemprop='price']",
         ],
+        "image_selectors": [
+            "meta[property='og:image']",
+            "img",
+        ],
     },
     "mindfactory": {
         "title_selectors": ["meta[property='og:title']", "h1", "title"],
@@ -54,6 +65,10 @@ SITE_CONFIGS: dict[str, dict[str, list[str]]] = {
             ".price",
             "[itemprop='price']",
             "meta[itemprop='price']",
+        ],
+        "image_selectors": [
+            "meta[property='og:image']",
+            "img",
         ],
     },
     "notebooksbilliger": {
@@ -64,6 +79,11 @@ SITE_CONFIGS: dict[str, dict[str, list[str]]] = {
             ".product-price",
             "[itemprop='price']",
             "meta[itemprop='price']",
+        ],
+        "image_selectors": [
+            "meta[property='og:image']",
+            "meta[property='og:image:secure_url']",
+            "img",
         ],
     },
     "amazon": {
@@ -83,6 +103,13 @@ SITE_CONFIGS: dict[str, dict[str, list[str]]] = {
             "meta[property='product:price:amount']",
             "meta[itemprop='price']",
         ],
+        "image_selectors": [
+            "img#landingImage",
+            "img#imgBlkFront",
+            "img#imgBlkBack",
+            "meta[property='og:image']",
+            "meta[property='og:image:secure_url']",
+        ],
     },
     "ebay": {
         "title_selectors": [
@@ -97,6 +124,12 @@ SITE_CONFIGS: dict[str, dict[str, list[str]]] = {
             "span[itemprop='price']",
             "meta[property='product:price:amount']",
             "meta[itemprop='price']",
+        ],
+        "image_selectors": [
+            "meta[property='og:image']",
+            "meta[property='og:image:secure_url']",
+            "img#icImg",
+            "img",
         ],
     },
     "etsy": {
@@ -113,6 +146,12 @@ SITE_CONFIGS: dict[str, dict[str, list[str]]] = {
             "meta[property='product:price:amount']",
             "meta[itemprop='price']",
         ],
+        "image_selectors": [
+            "meta[property='og:image']",
+            "meta[property='og:image:secure_url']",
+            "img[data-listing-card-listing-image]",
+            "img",
+        ],
     },
     "ikea": {
         "title_selectors": [
@@ -128,6 +167,12 @@ SITE_CONFIGS: dict[str, dict[str, list[str]]] = {
             "meta[property='product:price:amount']",
             "meta[itemprop='price']",
         ],
+        "image_selectors": [
+            "meta[property='og:image']",
+            "meta[property='og:image:secure_url']",
+            "img[data-testid='pip-product-image']",
+            "img",
+        ],
     },
     "aliexpress": {
         "title_selectors": [
@@ -141,6 +186,103 @@ SITE_CONFIGS: dict[str, dict[str, list[str]]] = {
             "[data-pl='product-price']",
             "meta[property='product:price:amount']",
             "meta[itemprop='price']",
+        ],
+        "image_selectors": [
+            "meta[property='og:image']",
+            "meta[property='og:image:secure_url']",
+            "img",
+        ],
+    },
+    "geizhals": {
+        "title_selectors": [
+            "h1",
+            "meta[property='og:title']",
+            "title",
+        ],
+        "price_selectors": [
+            "meta[property='product:price:amount']",
+            "meta[itemprop='price']",
+            ".gh_price",
+            ".price",
+        ],
+        "image_selectors": [
+            "meta[property='og:image']",
+            "meta[property='og:image:secure_url']",
+            "img",
+        ],
+    },
+    "tcgplayer": {
+        "title_selectors": [
+            "h1",
+            ".product-details__name",
+            "meta[property='og:title']",
+            "title",
+        ],
+        "price_selectors": [
+            "meta[property='product:price:amount']",
+            "meta[itemprop='price']",
+            ".product-details__price",
+            ".price",
+        ],
+        "image_selectors": [
+            "meta[property='og:image']",
+            "meta[property='og:image:secure_url']",
+            "img",
+        ],
+    },
+    "cardmarket": {
+        "title_selectors": [
+            "h1",
+            ".page-title",
+            "meta[property='og:title']",
+            "title",
+        ],
+        "price_selectors": [
+            "meta[property='product:price:amount']",
+            "meta[itemprop='price']",
+            ".price-container",
+            ".price",
+        ],
+        "image_selectors": [
+            "meta[property='og:image']",
+            "meta[property='og:image:secure_url']",
+            "img",
+        ],
+    },
+    "steam": {
+        "title_selectors": [
+            ".apphub_AppName",
+            "meta[property='og:title']",
+            "title",
+        ],
+        "price_selectors": [
+            "meta[itemprop='price']",
+            ".game_purchase_price",
+            ".discount_final_price",
+            ".price",
+        ],
+        "image_selectors": [
+            "meta[property='og:image']",
+            "meta[property='og:image:secure_url']",
+            ".game_header_image_full",
+            "img",
+        ],
+    },
+    "keyforsteam": {
+        "title_selectors": [
+            "h1",
+            "meta[property='og:title']",
+            "title",
+        ],
+        "price_selectors": [
+            ".offers-price",
+            "meta[property='product:price:amount']",
+            "meta[itemprop='price']",
+        ],
+        "image_selectors": [
+            "meta[property='og:image']",
+            "meta[property='og:image:secure_url']",
+            "img",
         ],
     },
 }
@@ -157,6 +299,13 @@ GENERIC_PRICE_SELECTORS = [
     "meta[property='og:price:amount']",
     "meta[itemprop='price']",
 ]
+GENERIC_IMAGE_SELECTORS = [
+    "meta[property='og:image']",
+    "meta[property='og:image:secure_url']",
+    "meta[name='twitter:image']",
+    "meta[property='twitter:image']",
+    "img",
+]
 
 
 def _build_soup(html: str) -> BeautifulSoup:
@@ -169,6 +318,16 @@ def _build_soup(html: str) -> BeautifulSoup:
 
 def get_site_key(url: str) -> str | None:
     host = urlparse(url).netloc.lower()
+    if "geizhals." in host:
+        return "geizhals"
+    if "tcgplayer.com" in host:
+        return "tcgplayer"
+    if "cardmarket.com" in host:
+        return "cardmarket"
+    if "steampowered.com" in host:
+        return "steam"
+    if "keyforsteam." in host:
+        return "keyforsteam"
     if "amazon." in host:
         return "amazon"
     if "ebay." in host:
@@ -273,7 +432,92 @@ def _extract_price_from_soup(soup: BeautifulSoup, selectors: list[str]) -> float
     return None
 
 
-def _extract_price_and_title_from_json_ld(soup: BeautifulSoup) -> tuple[str | None, float | None]:
+def _normalize_image_candidate(value: str | None, base_url: str | None) -> str | None:
+    if not value:
+        return None
+    candidate = value.strip()
+    if not candidate or candidate.startswith("data:"):
+        return None
+    if candidate.startswith("//"):
+        candidate = f"https:{candidate}"
+    if base_url and not candidate.startswith("http"):
+        from urllib.parse import urljoin
+
+        candidate = urljoin(base_url, candidate)
+    if candidate and candidate.startswith("http"):
+        return candidate
+    return None
+
+
+def _extract_image_from_soup(
+    soup: BeautifulSoup, selectors: list[str], base_url: str | None
+) -> str | None:
+    for selector in selectors:
+        node = soup.select_one(selector)
+        if not node:
+            continue
+        if node.name == "meta":
+            content = node.get("content")
+            url = _normalize_image_candidate(content, base_url)
+            if url:
+                return url
+            continue
+        if node.name != "img":
+            continue
+        for attr in ("data-src", "data-lazy", "data-original", "data-old-hires", "src"):
+            url = _normalize_image_candidate(node.get(attr), base_url)
+            if url:
+                return url
+        srcset = node.get("srcset") or node.get("data-srcset")
+        if srcset:
+            first = srcset.split(",")[0].strip().split(" ")[0]
+            url = _normalize_image_candidate(first, base_url)
+            if url:
+                return url
+    return None
+
+
+def _infer_image_from_url(site_key: str | None, url: str) -> str | None:
+    if site_key != "tcgplayer":
+        return None
+    match = re.search(r"/product/(\d+)", url)
+    if not match:
+        return None
+    product_id = match.group(1)
+    return f"https://tcgplayer-cdn.tcgplayer.com/product/{product_id}_in_1000x1000.jpg"
+
+
+def _extract_keyforsteam_price(soup: BeautifulSoup) -> float | None:
+    prices: list[float] = []
+    for offer_node in soup.select("a.recomended_offers"):
+        price_node = offer_node.select_one(".offers-price")
+        price_text = price_node.get_text(" ", strip=True) if price_node else None
+        price = extract_price_value(price_text)
+        if price is not None:
+            prices.append(price)
+    if not prices:
+        for row in soup.select("tr"):
+            price_node = row.select_one(".offers-price")
+            if not price_node:
+                continue
+            price_text = price_node.get_text(" ", strip=True)
+            price = extract_price_value(price_text)
+            if price is not None:
+                prices.append(price)
+    if not prices:
+        for node in soup.select(".offers-price"):
+            price_text = node.get_text(" ", strip=True)
+            price = extract_price_value(price_text)
+            if price is not None:
+                prices.append(price)
+    if not prices:
+        return None
+    return min(prices)
+
+
+def _extract_media_from_json_ld(
+    soup: BeautifulSoup, base_url: str | None
+) -> tuple[str | None, float | None, str | None]:
     def _walk(payload):
         if isinstance(payload, dict):
             yield payload
@@ -298,7 +542,23 @@ def _extract_price_and_title_from_json_ld(soup: BeautifulSoup) -> tuple[str | No
                     return price_value
         return None
 
+    def _extract_image(value) -> str | None:
+        if isinstance(value, str):
+            return _normalize_image_candidate(value, base_url)
+        if isinstance(value, list):
+            for item in value:
+                url = _extract_image(item)
+                if url:
+                    return url
+        if isinstance(value, dict):
+            for key in ("url", "@id"):
+                url = _normalize_image_candidate(value.get(key), base_url)
+                if url:
+                    return url
+        return None
+
     fallback_name = None
+    fallback_image = None
     for script in soup.select("script[type='application/ld+json']"):
         raw = (script.string or script.get_text() or "").strip()
         if not raw:
@@ -322,13 +582,16 @@ def _extract_price_and_title_from_json_ld(soup: BeautifulSoup) -> tuple[str | No
                 name = None
             if name and fallback_name is None:
                 fallback_name = name
+            if fallback_image is None:
+                fallback_image = _extract_image(node.get("image"))
 
             price = _extract_offer_price(node.get("offers")) if node.get("offers") is not None else None
             if price is None:
                 price = _extract_offer_price(node)
             if price is not None:
-                return name, price
-    return fallback_name, None
+                image = _extract_image(node.get("image")) or fallback_image
+                return name or fallback_name, price, image
+    return fallback_name, None, fallback_image
 
 
 def scrape_with_bs4(url: str):
@@ -336,6 +599,7 @@ def scrape_with_bs4(url: str):
     site_cfg = SITE_CONFIGS.get(site_key or "", {})
     title_selectors = site_cfg.get("title_selectors", []) + GENERIC_TITLE_SELECTORS
     price_selectors = site_cfg.get("price_selectors", []) + GENERIC_PRICE_SELECTORS
+    image_selectors = site_cfg.get("image_selectors", []) + GENERIC_IMAGE_SELECTORS
 
     session = requests.Session()
     try:
@@ -365,11 +629,20 @@ def scrape_with_bs4(url: str):
 
     title = _extract_title_from_soup(soup, title_selectors) or "Unknown"
     price = _extract_price_from_soup(soup, price_selectors)
-    ld_title, ld_price = _extract_price_and_title_from_json_ld(soup)
+    image_url = _extract_image_from_soup(soup, image_selectors, url)
+    ld_title, ld_price, ld_image = _extract_media_from_json_ld(soup, url)
     if (title == "Unknown" or _looks_like_domain_title(title)) and ld_title:
         title = ld_title
     if price is None and ld_price is not None:
         price = ld_price
+    if not image_url and ld_image:
+        image_url = ld_image
+    if site_key == "keyforsteam":
+        key_price = _extract_keyforsteam_price(soup)
+        if key_price is not None:
+            price = key_price
+    if not image_url:
+        image_url = _infer_image_from_url(site_key, url)
 
     if price is None:
         log_event(
@@ -389,7 +662,7 @@ def scrape_with_bs4(url: str):
         site_key=site_key,
         price=price,
     )
-    return {"name": title, "price": price, "url": url}
+    return {"name": title, "price": price, "image_url": image_url, "url": url}
 
 
 def scrape_with_playwright(url: str):
@@ -397,6 +670,7 @@ def scrape_with_playwright(url: str):
     site_cfg = SITE_CONFIGS.get(site_key or "", {})
     title_selectors = site_cfg.get("title_selectors", []) + GENERIC_TITLE_SELECTORS
     price_selectors = site_cfg.get("price_selectors", []) + GENERIC_PRICE_SELECTORS
+    image_selectors = site_cfg.get("image_selectors", []) + GENERIC_IMAGE_SELECTORS
 
     stage = "init"
     browser = None
@@ -461,6 +735,7 @@ def scrape_with_playwright(url: str):
             stage = "extract_price_by_selectors"
             price = None
             last_seen_price_text = None
+            image_url = None
             for selector in price_selectors:
                 locator = page.locator(selector).first
                 if locator.count() == 0:
@@ -474,19 +749,28 @@ def scrape_with_playwright(url: str):
                 if price is not None:
                     break
 
-            if price is None:
+            if price is None or image_url is None:
                 stage = "extract_from_html_json_ld"
                 html = page.content()
                 soup = _build_soup(html)
                 soup_title = _extract_title_from_soup(soup, title_selectors)
                 if soup_title and (not title or _looks_like_domain_title(title)):
                     title = soup_title
-                price = _extract_price_from_soup(soup, price_selectors)
-                ld_title, ld_price = _extract_price_and_title_from_json_ld(soup)
+                if price is None:
+                    price = _extract_price_from_soup(soup, price_selectors)
+                if price is None and site_key == "keyforsteam":
+                    price = _extract_keyforsteam_price(soup)
+                if image_url is None:
+                    image_url = _extract_image_from_soup(soup, image_selectors, page.url)
+                ld_title, ld_price, ld_image = _extract_media_from_json_ld(soup, page.url)
                 if ld_title and (not title or _looks_like_domain_title(title)):
                     title = ld_title
                 if price is None and ld_price is not None:
                     price = ld_price
+                if not image_url and ld_image:
+                    image_url = ld_image
+                if not image_url:
+                    image_url = _infer_image_from_url(site_key, page.url)
                 if price is None:
                     body_text = soup.get_text(" ", strip=True)
                     last_seen_price_text = (last_seen_price_text or body_text[:200]).strip()
@@ -513,6 +797,7 @@ def scrape_with_playwright(url: str):
             return {
                 "name": title or "Unknown",
                 "price": price,
+                "image_url": image_url,
                 "url": url,
             }
     except Exception as exc:
