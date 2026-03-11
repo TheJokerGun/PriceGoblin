@@ -9,6 +9,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..locale_utils import normalize_locale
 from ..models import User
 
 load_dotenv()
@@ -29,13 +30,17 @@ def verify_password(plain_password: str, password_hash: str) -> bool:
     return pwd_context.verify(plain_password, password_hash)
 
 
-def register_user(db: Session, email: str, password: str) -> User:
+def register_user(db: Session, email: str, password: str, locale: str | None = None) -> User:
     user = db.query(User).filter(User.email == email).first()
 
     if user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    user = User(email=email, password_hash=hash_password(password))
+    user = User(
+        email=email,
+        password_hash=hash_password(password),
+        locale=normalize_locale(locale),
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -114,5 +119,9 @@ def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    token_locale = normalize_locale(payload.get("locale"))
+    if token_locale:
+        setattr(user, "locale", token_locale)
 
     return user

@@ -55,8 +55,8 @@
 - JWT bearer token is returned by login/register.
 - Send token on protected endpoints:
   - `Authorization: Bearer <access_token>`
-- Protected endpoints: all `/api/products/*`, `/api/tracking/*`
-- Public endpoints: `/api/auth/register`, `/api/auth/login`, `/api/scrape`
+- Protected endpoints: all `/api/products/*`, `/api/tracking/*`, `/api/scrape/url`, `/api/scrape`
+- Public endpoints: `/api/auth/register`, `/api/auth/login`, `/api/scrape/category`
 
 ## Common Error Shape
 - FastAPI default:
@@ -135,7 +135,9 @@ Request:
 {
   "name": "RTX 4080",
   "url": "https://example.com/p/123",
-  "category": null
+  "category": null,
+  "source": "alternate.de",
+  "target_price": 450.0
 }
 ```
 
@@ -149,12 +151,68 @@ Success `200`:
   "name": "RTX 4080",
   "url": "https://example.com/p/123",
   "category": null,
+  "tracking_id": 55,
+  "is_active": true,
+  "source": "alternate.de",
+  "target_price": 450.0,
   "created_at": "2026-03-03T10:12:30.123456+00:00"
 }
 ```
 
 Errors:
 - `400` missing all identifying fields
+- `401` unauthorized
+
+#### `POST /api/products/bulk`
+Bulk create/attach products from frontend-selected category results (no re-scrape).
+
+Request:
+```json
+{
+  "items": [
+    {
+      "name": "ELDEN RING",
+      "url": "https://store.steampowered.com/app/1245620/ELDEN_RING/",
+      "category": "games",
+      "price": 59.99,
+      "source": "steam",
+      "target_price": 44.99
+    },
+    {
+      "name": "ELDEN RING NIGHTREIGN Key kaufen Preisvergleich",
+      "url": "https://www.allkeyshop.com/redirection/offer/...",
+      "category": "games",
+      "price": 10.35,
+      "source": "GAMESEAL"
+    }
+  ]
+}
+```
+
+Success `200`:
+```json
+{
+  "count": 2,
+  "data": [
+    {
+      "product_id": 101,
+      "tracking_id": 55,
+      "name": "ELDEN RING",
+      "url": "https://store.steampowered.com/app/1245620/ELDEN_RING/",
+      "category": "games",
+      "source": "steam",
+      "target_price": 44.99,
+      "is_active": true,
+      "created_product": true,
+      "created_tracking": true,
+      "seeded_price": 59.99
+    }
+  ]
+}
+```
+
+Errors:
+- `400` items must not be empty
 - `401` unauthorized
 
 #### `GET /api/products`
@@ -168,6 +226,10 @@ Success `200`:
     "name": "RTX 4080",
     "url": "https://example.com/p/123",
     "category": null,
+    "tracking_id": 55,
+    "is_active": true,
+    "source": "alternate.de",
+    "target_price": 450.0,
     "created_at": "2026-03-03T10:12:30.123456+00:00"
   }
 ]
@@ -183,6 +245,10 @@ Success `200`:
   "name": "RTX 4080",
   "url": "https://example.com/p/123",
   "category": null,
+  "tracking_id": 55,
+  "is_active": true,
+  "source": "alternate.de",
+  "target_price": 450.0,
   "created_at": "2026-03-03T10:12:30.123456+00:00"
 }
 ```
@@ -285,6 +351,8 @@ Success `200`:
     "user_id": 1,
     "product_id": 12,
     "is_active": true,
+    "source": "steam",
+    "target_price": 44.99,
     "created_at": "2026-03-04T09:00:00.000000+00:00"
   }
 ]
@@ -311,6 +379,42 @@ Success `200`:
   "user_id": 1,
   "product_id": 12,
   "is_active": false,
+  "source": "steam",
+  "target_price": 44.99,
+  "created_at": "2026-03-04T09:00:00.000000+00:00"
+}
+```
+
+Errors:
+- `404` tracking entry not found
+- `401` unauthorized
+
+#### `PATCH /api/tracking/{tracking_id}/target-price`
+Set or clear the user's target buy price for this tracking entry.
+
+Request:
+```json
+{
+  "target_price": 39.99
+}
+```
+
+Use `null` to clear:
+```json
+{
+  "target_price": null
+}
+```
+
+Success `200`:
+```json
+{
+  "id": 44,
+  "user_id": 1,
+  "product_id": 12,
+  "is_active": true,
+  "source": "steam",
+  "target_price": 39.99,
   "created_at": "2026-03-04T09:00:00.000000+00:00"
 }
 ```
@@ -321,15 +425,21 @@ Errors:
 
 ---
 
-### Scraping (Public)
+### Scraping
 
 #### `POST /api/scrape/url`
-Scrape one product URL.
+Scrape one product URL, then persist into:
+- `products` (create if URL not present, otherwise reuse/update),
+- `tracking` for current user (create or reactivate),
+- `price_entries` seed on first known price for that product.
+
+Auth required.
 
 Request:
 ```json
 {
-  "url": "https://example.com/p/123"
+  "url": "https://example.com/p/123",
+  "target_price": 450.0
 }
 ```
 
@@ -337,7 +447,7 @@ Success `200`:
 ```json
 {
   "type": "product",
-  "id": 1,
+  "id": 10,
   "name": "RTX 4080",
   "url": "https://example.com/p/123",
   "category": null,
@@ -348,6 +458,7 @@ Success `200`:
 
 Errors:
 - `400` scrape failed
+- `401` unauthorized
 
 #### `POST /api/scrape/category`
 Scrape category candidates (selection list for frontend).  
@@ -396,11 +507,13 @@ Errors:
 Legacy combined endpoint (backward-compatible).  
 Prefer `/api/scrape/url` and `/api/scrape/category` for new frontend flow.
 
+Auth required.
+
 ## Notes for Frontend
 - Recommended games/category flow:
   1. Call `POST /api/scrape/category` with `{category,name,limit}`.
   2. Show candidates (`name`, `price`, `source`, `url`) to user.
-  3. On selection, call `POST /api/products` for selected entries only.
-  4. Use `GET /api/tracking` to show tracked state and active toggles.
+  3. On selection, call `POST /api/products/bulk` with selected entries only (optional `target_price` per item).
+  4. Use `GET /api/tracking` to show tracked state, source, active toggles, and target price.
 - Use `GET /api/products/{product_id}/current-price` to show the latest known value without triggering a new scrape.
 - Use `POST /api/products/{product_id}/check-price` only when you intentionally want a fresh fetch + DB write.

@@ -29,9 +29,12 @@ Base = declarative_base()
 def init_db() -> None:
     from . import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
+    _migrate_users_add_locale()
     _migrate_tracking_drop_url()
+    _migrate_tracking_add_fields()
     _backfill_tracking_from_products()
     _migrate_products_drop_user_id()
+    _migrate_products_add_image_url()
 
 
 def _migrate_tracking_drop_url() -> None:
@@ -80,6 +83,23 @@ def _migrate_tracking_drop_url() -> None:
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_tracking_id ON tracking (id)"))
 
 
+def _migrate_tracking_add_fields() -> None:
+    with engine.begin() as conn:
+        table_exists = conn.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='tracking'")
+        ).first()
+        if not table_exists:
+            return
+
+        columns = conn.execute(text("PRAGMA table_info(tracking)")).mappings().all()
+        existing_column_names = {col.get("name") for col in columns}
+
+        if "source" not in existing_column_names:
+            conn.execute(text("ALTER TABLE tracking ADD COLUMN source VARCHAR"))
+        if "target_price" not in existing_column_names:
+            conn.execute(text("ALTER TABLE tracking ADD COLUMN target_price FLOAT"))
+
+
 def _backfill_tracking_from_products() -> None:
     with engine.begin() as conn:
         products_exists = conn.execute(
@@ -121,6 +141,7 @@ def _migrate_products_drop_user_id() -> None:
 
         columns = conn.execute(text("PRAGMA table_info(products)")).mappings().all()
         has_user_id_column = any(col.get("name") == "user_id" for col in columns)
+        has_image_url_column = any(col.get("name") == "image_url" for col in columns)
         if not has_user_id_column:
             return
 
@@ -134,6 +155,7 @@ def _migrate_products_drop_user_id() -> None:
                     name VARCHAR,
                     url VARCHAR,
                     category VARCHAR,
+                    image_url VARCHAR,
                     created_at DATETIME
                 )
                 """
@@ -141,9 +163,11 @@ def _migrate_products_drop_user_id() -> None:
         )
         conn.execute(
             text(
-                """
-                INSERT INTO products_new (id, name, url, category, created_at)
-                SELECT id, name, url, category, created_at
+                f"""
+                INSERT INTO products_new (id, name, url, category, image_url, created_at)
+                SELECT id, name, url, category,
+                       {"image_url" if has_image_url_column else "NULL"},
+                       created_at
                 FROM products
                 """
             )
@@ -152,6 +176,34 @@ def _migrate_products_drop_user_id() -> None:
         conn.execute(text("ALTER TABLE products_new RENAME TO products"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_products_id ON products (id)"))
         conn.execute(text("PRAGMA foreign_keys=ON"))
+
+
+def _migrate_products_add_image_url() -> None:
+    with engine.begin() as conn:
+        table_exists = conn.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='products'")
+        ).first()
+        if not table_exists:
+            return
+
+        columns = conn.execute(text("PRAGMA table_info(products)")).mappings().all()
+        existing_column_names = {col.get("name") for col in columns}
+        if "image_url" not in existing_column_names:
+            conn.execute(text("ALTER TABLE products ADD COLUMN image_url VARCHAR"))
+
+
+def _migrate_users_add_locale() -> None:
+    with engine.begin() as conn:
+        table_exists = conn.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        ).first()
+        if not table_exists:
+            return
+
+        columns = conn.execute(text("PRAGMA table_info(users)")).mappings().all()
+        existing_column_names = {col.get("name") for col in columns}
+        if "locale" not in existing_column_names:
+            conn.execute(text("ALTER TABLE users ADD COLUMN locale VARCHAR"))
 
 
 def get_db() -> Generator[Session, None, None]:

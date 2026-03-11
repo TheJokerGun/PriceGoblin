@@ -48,3 +48,20 @@ def update_tracking_active(
     db.commit()
     db.refresh(tracking)
     return tracking
+
+
+def update_tracking_target_price(
+    db: Session,
+    user_id: int,
+    tracking_id: int,
+    target_price: float | None,
+) -> Tracking | None:
+    tracking = get_tracking_by_id(db, user_id, tracking_id)
+    if not tracking:
+        return None
+
+    tracking.target_price = target_price
+    db.add(tracking)
+    db.commit()
+    db.refresh(tracking)
+    return tracking

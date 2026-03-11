@@ -1,7 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..schemas import PriceResponse, ProductCreate, ProductResponse
+from ..schemas import (
+    PriceResponse,
+    ProductCategorySelectionCreate,
+    ProductCategorySelectionResponse,
+    ProductCreate,
+    ProductResponse,
+)
 from ..services import auth_service, product_service
 
 router = APIRouter(prefix="/api/products", tags=["Products"])
@@ -18,7 +24,23 @@ def create_product(
             status_code=400,
             detail="At least one of name, url, or category must be provided"
         )
-    return product_service.create_product(db, current_user.id, product)
+    return product_service.create_product(
+        db,
+        current_user.id,
+        product,
+        locale=getattr(current_user, "locale", None),
+    )
+
+
+@router.post("/bulk", response_model=ProductCategorySelectionResponse)
+def create_products_bulk_from_category(
+    payload: ProductCategorySelectionCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(auth_service.get_current_user),
+) -> ProductCategorySelectionResponse:
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="items must not be empty")
+    return product_service.create_products_from_category_selection(db, current_user.id, payload)
 
 
 @router.get("", response_model=list[ProductResponse])
@@ -100,7 +122,12 @@ def check_product_price(
     db: Session = Depends(get_db),
     current_user=Depends(auth_service.get_current_user)
 ) -> PriceResponse:
-    result = product_service.check_product_price(db, current_user.id, product_id)
+    result = product_service.check_product_price(
+        db,
+        current_user.id,
+        product_id,
+        locale=getattr(current_user, "locale", None),
+    )
     if not result:
         raise HTTPException(status_code=404, detail="Product not found")
     return PriceResponse(
