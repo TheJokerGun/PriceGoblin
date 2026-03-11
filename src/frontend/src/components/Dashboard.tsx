@@ -30,7 +30,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6 text-white flex items-center gap-3">
+      <h2 className="text-2xl font-bold mb-6 dark:text-white text-gray-900 flex items-center gap-3">
         <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
         Your Dashboard
       </h2>
@@ -49,9 +49,9 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {!isLoading && !error && products.length === 0 && (
-        <div className="text-center p-20 bg-gray-900/20 rounded-4xl border-2 border-dashed border-gray-800">
-          <p className="text-gray-400 text-lg font-medium">Your watchlist is empty.</p>
-          <p className="text-gray-600 text-sm mt-2 font-medium italic">Start by adding a product above!</p>
+        <div className="text-center p-20 dark:bg-gray-900/20 bg-gray-100/50 rounded-4xl border-2 border-dashed dark:border-gray-800 border-gray-300">
+          <p className="dark:text-gray-400 text-gray-600 text-lg font-medium">Your watchlist is empty.</p>
+          <p className="dark:text-gray-600 text-gray-400 text-sm mt-2 font-medium italic">Start by adding a product above!</p>
         </div>
       )}
 

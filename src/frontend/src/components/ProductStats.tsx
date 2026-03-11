@@ -1,6 +1,7 @@
 import React from "react";
 import { LuExternalLink, LuCalendar, LuTrendingDown, LuTrendingUp, LuDollarSign } from "react-icons/lu";
 import type { Product } from "../types";
+import { formatCurrency, formatDate } from "../utils/formatters";
 
 interface ProductStatsProps {
   product: Product;
@@ -40,13 +41,13 @@ const ProductStats: React.FC<ProductStatsProps> = ({
   };
   return (
     <div className="lg:col-span-1 space-y-6">
-      <div className="bg-gray-900/50 backdrop-blur-md border border-gray-800 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden relative">
+      <div className="dark:bg-gray-900/50 bg-white backdrop-blur-md border dark:border-gray-800 border-gray-200 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden relative transition-colors duration-300">
         <div className="absolute top-0 right-0 p-8 opacity-5 text-8xl">
           <LuDollarSign />
         </div>
         
         <div className="flex flex-col gap-6 mb-8 relative z-10">
-          <div className="w-full aspect-square rounded-4xl overflow-hidden bg-gray-800/50 flex items-center justify-center border border-gray-700/50 shrink-0">
+          <div className="w-full aspect-square rounded-4xl overflow-hidden dark:bg-gray-800/50 bg-gray-50 flex items-center justify-center border dark:border-gray-700/50 border-gray-200 shrink-0">
             {product.image_url ? (
               <img 
                 src={product.image_url} 
@@ -64,7 +65,7 @@ const ProductStats: React.FC<ProductStatsProps> = ({
             )}
           </div>
           <div className="space-y-4">
-            <h1 className="text-3xl font-black tracking-tight leading-tight" title={product.name}>
+            <h1 className="text-3xl font-black tracking-tight leading-tight dark:text-white text-gray-900" title={product.name}>
               {product.name}
             </h1>
             
@@ -78,12 +79,11 @@ const ProductStats: React.FC<ProductStatsProps> = ({
             </a>
           </div>
         </div>
-
-        <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-800/50">
+<div className="grid grid-cols-2 gap-4 pt-6 border-t dark:border-gray-800/50 border-gray-100">
           <div className="space-y-1">
-            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Current Price</span>
-            <p className="text-2xl font-black text-white">
-              ${currentPrice?.toFixed(2) || "---"}
+            <span className="text-[10px] font-black dark:text-gray-500 text-gray-400 uppercase tracking-widest">Current Price</span>
+            <p className="text-2xl font-black dark:text-white text-gray-900">
+              {formatCurrency(currentPrice)}
             </p>
           </div>
           <div className="space-y-1">
@@ -96,8 +96,8 @@ const ProductStats: React.FC<ProductStatsProps> = ({
         </div>
       </div>
 
-      <div className="bg-gray-900/40 backdrop-blur-md border border-gray-800 rounded-[2.5rem] p-8 shadow-2xl">
-        <h3 className="text-gray-400 font-bold mb-6 uppercase tracking-widest text-[10px]">Target Price Alert</h3>
+      <div className="dark:bg-gray-900/40 bg-white backdrop-blur-md border dark:border-gray-800 border-gray-200 rounded-[2.5rem] p-8 shadow-2xl transition-colors duration-300">
+        <h3 className="dark:text-gray-400 text-gray-500 font-bold mb-6 uppercase tracking-widest text-[10px]">Target Price Alert</h3>
         
         {isEditing ? (
           <div className="space-y-4">
@@ -109,7 +109,7 @@ const ProductStats: React.FC<ProductStatsProps> = ({
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="299.99"
-                className="w-full bg-black/50 border border-gray-700 rounded-2xl py-4 pl-8 pr-4 text-white font-bold focus:outline-hidden focus:border-blue-500 transition-colors"
+                className="w-full dark:bg-black/50 bg-gray-50 border dark:border-gray-700 border-gray-200 rounded-2xl py-4 pl-8 pr-4 dark:text-white text-gray-900 font-bold focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-colors"
                 autoFocus
               />
             </div>
@@ -122,7 +122,7 @@ const ProductStats: React.FC<ProductStatsProps> = ({
               </button>
               <button
                 onClick={() => setIsEditing(false)}
-                className="py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl font-bold transition-all text-sm"
+                className="py-3 dark:bg-gray-800 bg-gray-100 hover:dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 text-gray-600 rounded-xl font-bold transition-all text-sm"
               >
                 Cancel
               </button>
@@ -131,15 +131,15 @@ const ProductStats: React.FC<ProductStatsProps> = ({
         ) : (
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <p className="text-2xl font-black text-white">
-                {targetPrice !== null ? `$${targetPrice.toFixed(2)}` : "Not Set"}
+              <p className="text-2xl font-black dark:text-white text-gray-900">
+                {targetPrice !== null ? formatCurrency(targetPrice) : "Not Set"}
               </p>
               <p className="text-xs text-gray-500 font-medium">Notify when price drops below</p>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setIsEditing(true)}
-                className="p-3 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl transition-all"
+                className="p-3 dark:bg-gray-800 bg-gray-100 hover:dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 text-gray-600 rounded-xl transition-all"
                 title="Edit Target Price"
               >
                 <LuDollarSign size={18} />
@@ -147,7 +147,7 @@ const ProductStats: React.FC<ProductStatsProps> = ({
               {targetPrice !== null && (
                 <button
                   onClick={handleRemove}
-                  className="p-3 bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded-xl transition-all"
+                  className="p-3 dark:bg-red-900/20 bg-red-50 hover:dark:bg-red-900/40 hover:bg-red-100 text-red-500 dark:text-red-400 rounded-xl transition-all"
                   title="Remove Target Price"
                 >
                   <LuTrendingDown size={18} />
@@ -167,18 +167,18 @@ const ProductStats: React.FC<ProductStatsProps> = ({
                 <div className="p-2 bg-white/20 rounded-xl"><LuTrendingDown size={20} /></div>
                 <span className="font-medium">All-time Low</span>
               </div>
-              <span className="font-black text-xl">${lowestPrice?.toFixed(2) || "---"}</span>
+              <span className="font-black text-xl">{formatCurrency(lowestPrice)}</span>
             </div>
             <div className="flex justify-between items-center text-white">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-white/20 rounded-xl"><LuTrendingUp size={20} /></div>
                 <span className="font-medium">All-time High</span>
               </div>
-              <span className="font-black text-xl">${highestPrice?.toFixed(2) || "---"}</span>
+              <span className="font-black text-xl">{formatCurrency(highestPrice)}</span>
             </div>
           </div>
           <p className="mt-8 text-white/60 text-xs flex items-center gap-2">
-            <LuCalendar size={14} /> Tracking since {new Date(product.created_at).toLocaleDateString()}
+            <LuCalendar size={14} /> Tracking since {formatDate(product.created_at)}
           </p>
         </div>
       </div>

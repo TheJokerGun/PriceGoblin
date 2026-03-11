@@ -3,6 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import type { Product, Price, Tracking } from "../types";
 import api from "../api/client";
 import { showAlert } from "../utils/alerts";
+import { formatDate } from "../utils/formatters";
 import { LuArrowLeft } from "react-icons/lu";
 
 import ProductHeader from "../components/ProductHeader";
@@ -80,8 +81,8 @@ const ProductPage = () => {
   };
 
   const formattedPrices = prices.map((p) => ({
-    date: new Date(p.checked_at).toLocaleDateString([], { month: 'short', day: 'numeric' }),
-    fullDate: new Date(p.checked_at).toLocaleString(),
+    date: formatDate(p.checked_at, { month: 'short', day: 'numeric' }),
+    fullDate: formatDate(p.checked_at, { dateStyle: 'medium', timeStyle: 'short' }),
     price: Number(p.price),
   }));
 
@@ -91,7 +92,7 @@ const ProductPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-gray-500">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center dark:text-gray-500 text-gray-400">
         <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4" />
         <p className="animate-pulse font-medium">Analyzing market data...</p>
       </div>
@@ -112,7 +113,7 @@ const ProductPage = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 text-white space-y-8">
+    <div className="max-w-6xl mx-auto px-4 py-8 dark:text-white text-gray-900 space-y-8 transition-colors duration-300">
       <ProductHeader tracking={tracking} onToggleTracking={handleToggleTracking} />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <ProductStats
