@@ -30,7 +30,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6 text-white flex items-center gap-3">
+      <h2 className="text-2xl font-bold mb-6 dark:text-white text-gray-900 flex items-center gap-3">
         <span className="w-2 h-8 bg-blue-500 rounded-full"></span>
         Your Dashboard
       </h2>
@@ -49,9 +49,9 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {!isLoading && !error && products.length === 0 && (
-        <div className="text-center p-20 bg-gray-900/20 rounded-4xl border-2 border-dashed border-gray-800">
-          <p className="text-gray-400 text-lg font-medium">Your watchlist is empty.</p>
-          <p className="text-gray-600 text-sm mt-2 font-medium italic">Start by adding a product above!</p>
+        <div className="text-center p-20 dark:bg-gray-900/20 bg-gray-100/50 rounded-4xl border-2 border-dashed dark:border-gray-800 border-gray-300">
+          <p className="dark:text-gray-400 text-gray-600 text-lg font-medium">Your watchlist is empty.</p>
+          <p className="dark:text-gray-600 text-gray-400 text-sm mt-2 font-medium italic">Start by adding a product above!</p>
         </div>
       )}
 
@@ -84,17 +84,18 @@ const Dashboard: React.FC<DashboardProps> = ({
               <h3 className="text-lg font-semibold mb-6 text-gray-500 uppercase tracking-widest">
                 Paused
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {inactiveProducts.map((p) => (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    price={prices[p.id]}
-                    isRefreshing={refreshing[p.id]}
-                    onRefresh={onRefreshPrice}
-                    onToggleTracking={onToggleTracking}
-                    onDelete={onDeleteTracking}
-                  />
+                  <div key={p.id} className="opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300">
+                    <ProductCard
+                      product={p}
+                      price={prices[p.id]}
+                      isRefreshing={refreshing[p.id]}
+                      onRefresh={onRefreshPrice}
+                      onToggleTracking={onToggleTracking}
+                      onDelete={onDeleteTracking}
+                    />
+                  </div>
                 ))}
               </div>
             </section>

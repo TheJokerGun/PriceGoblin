@@ -13,6 +13,8 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Set Accept-Language header based on browser locale
+    config.headers["Accept-Language"] = navigator.language;
     return config;
   },
   (error) => {

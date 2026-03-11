@@ -7,6 +7,8 @@ import {
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import ProductPage from "./pages/ProductPage";
+import ImpressumPage from "./pages/ImpressumPage";
+import { ThemeProvider } from "./context/ThemeContext";
 import Layout from "./components/Layout";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -17,34 +19,37 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/home"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <HomePage />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/productinfo"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ProductPage />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/" element={<Navigate to="/home" />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/impressum" element={<Layout><ImpressumPage /></Layout>} />
+            <Route
+              path="/home"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <HomePage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/productinfo"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ProductPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/" element={<Navigate to="/home" />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

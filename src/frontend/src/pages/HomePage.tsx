@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "../api/client";
+import { showAlert } from "../utils/alerts";
 import type { Product, Tracking, ScrapedItem, ScrapeResult } from "../types";
 
 import SearchSection from "../components/SearchSection";
@@ -42,6 +43,15 @@ function HomePage() {
   }, []);
 
   useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  useEffect(() => {
     products.forEach((product) => {
       api
         .get(`/products/${product.id}/current-price`)
@@ -71,7 +81,7 @@ function HomePage() {
   const handleTrackProduct = async () => {
     const input = url.trim();
     if (!input) {
-      alert("Please enter a URL or product name.");
+      showAlert("Please enter a URL or product name.");
       return;
     }
 
@@ -82,18 +92,7 @@ function HomePage() {
         const scrapeRes = await api.post<ScrapeResult>("/scrape/url", { url: input });
         const scrapedProduct = scrapeRes.data;
 
-        await api.post("/products/bulk", {
-          items: [
-            {
-              name: scrapedProduct.name,
-              url: scrapedProduct.url,
-              category: category,
-              price: scrapedProduct.price,
-            },
-          ],
-        });
-
-        alert(`Product tracking started for: ${scrapedProduct.name}`);
+        showAlert(`Product tracking started for: ${scrapedProduct.name}`);
         setUrl("");
         await fetchData();
       } else {
@@ -108,14 +107,17 @@ function HomePage() {
           setSelectedUrls(new Set());
           setView("selection");
         } else {
-          alert("No products found for this search.");
+          showAlert("No products found for this search.");
         }
       }
     } catch (err: any) {
       console.error("Error in scraping flow:", err);
-      const detail = err.response?.data?.detail || "Scrape failed.";
+      const rawDetail = err.response?.data?.detail;
+      const detail = typeof rawDetail === "string"
+        ? rawDetail
+        : (rawDetail ? JSON.stringify(rawDetail.message) : "Scrape failed.");
       setError(detail);
-      alert(`Error: ${detail}`);
+      showAlert(`Error: ${detail}`);
     } finally {
       setIsTracking(false);
     }
@@ -123,7 +125,7 @@ function HomePage() {
 
   const handleTrackSelected = async () => {
     if (selectedUrls.size === 0) {
-      alert("Please select at least one item to track.");
+      showAlert("Please select at least one item to track.");
       return;
     }
 
@@ -136,17 +138,22 @@ function HomePage() {
         category: category,
         price: item.price,
         source: item.source,
+        image_url: item.image_url,
       }));
 
       await api.post("/products/bulk", { items });
 
-      alert(`Successfully tracked ${selectedUrls.size} items.`);
+      showAlert(`Successfully tracked ${selectedUrls.size} items.`);
       setView("home");
       setUrl("");
       await fetchData();
     } catch (err: any) {
       console.error("Error tracking selected items:", err);
-      alert("Failed to track items. Check console.");
+      const rawDetail = err.response?.data?.detail;
+      const detail = typeof rawDetail === "string" 
+        ? rawDetail 
+        : (rawDetail ? JSON.stringify(rawDetail.message) : "Failed to track items.");
+      showAlert(`Error: ${detail}`);
     } finally {
       setIsTracking(false);
     }

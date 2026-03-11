@@ -9,6 +9,7 @@ import {
   Area,
 } from "recharts";
 import { LuTrendingDown } from "react-icons/lu";
+import { formatCurrency } from "../utils/formatters";
 
 interface PriceChartProps {
   prices: { date: string; fullDate: string; price: number }[];
@@ -17,11 +18,11 @@ interface PriceChartProps {
 const PriceChart: React.FC<PriceChartProps> = ({ prices }) => {
   return (
     <div className="lg:col-span-2">
-      <div className="bg-gray-900/50 backdrop-blur-md border border-gray-800 rounded-[2.5rem] p-8 shadow-2xl h-full flex flex-col">
+      <div className="dark:bg-gray-900/50 bg-white backdrop-blur-md border dark:border-gray-800 border-gray-200 rounded-[2.5rem] p-8 shadow-2xl h-full flex flex-col transition-colors duration-300">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-xl font-black text-white">Price Volatility</h2>
+          <h2 className="text-xl font-black dark:text-white text-gray-900">Price Volatility</h2>
           <div className="flex gap-2">
-            <span className="px-3 py-1 bg-gray-800 rounded-lg text-xs font-bold text-gray-400">Real-time Data</span>
+            <span className="px-3 py-1 dark:bg-gray-800 bg-gray-100 rounded-lg text-xs font-bold dark:text-gray-400 text-gray-500">Real-time Data</span>
           </div>
         </div>
         
@@ -35,29 +36,28 @@ const PriceChart: React.FC<PriceChartProps> = ({ prices }) => {
                     <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                 <XAxis 
                   dataKey="date" 
-                  stroke="#4b5563" 
-                  fontSize={12} 
-                  fontWeight={600}
-                  axisLine={false}
-                  tickLine={false}
+                  stroke="var(--chart-text)" 
+                  fontSize={10} 
+                  fontWeight="bold"
+                  tickLine={false} 
+                  axisLine={false} 
                   dy={10}
                 />
                 <YAxis 
-                  stroke="#4b5563" 
-                  fontSize={12} 
-                  fontWeight={600}
-                  axisLine={false}
-                  tickLine={false}
-                  domain={['auto', 'auto']}
-                  tickFormatter={(value) => `$${value}`}
+                  stroke="var(--chart-text)" 
+                  fontSize={10} 
+                  fontWeight="bold"
+                  tickLine={false} 
+                  axisLine={false} 
+                  tickFormatter={(val) => formatCurrency(val)}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#111827",
-                    border: "1px solid #374151",
+                    backgroundColor: "var(--tooltip-bg)",
+                    border: "1px solid var(--tooltip-border)",
                     borderRadius: "16px",
                     boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
                   }}
@@ -77,10 +77,10 @@ const PriceChart: React.FC<PriceChartProps> = ({ prices }) => {
             </ResponsiveContainer>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-40 grayscale">
-              <div className="p-6 bg-gray-800 rounded-full">
-                <LuTrendingDown size={48} className="text-white" />
+              <div className="p-6 dark:bg-gray-800 bg-gray-100 rounded-full">
+                <LuTrendingDown size={48} className="dark:text-white text-gray-900" />
               </div>
-              <p className="max-w-xs font-medium text-white">Accumulating more data points to generate your price trajectory chart.</p>
+              <p className="max-w-xs font-medium dark:text-white text-gray-900">Accumulating more data points to generate your price trajectory chart.</p>
             </div>
           )}
         </div>

@@ -21,13 +21,13 @@ const CandidateSelection: React.FC<CandidateSelectionProps> = ({
   isTracking,
 }) => {
   return (
-    <div className="container mx-auto p-4 min-h-screen bg-black text-white">
+    <div className="container mx-auto p-4 min-h-screen dark:bg-black bg-gray-50 dark:text-white text-gray-900 transition-colors duration-300">
       <div className="flex items-center gap-4 mb-8">
         <button
           onClick={onBack}
-          className="p-2 hover:bg-gray-800 rounded-full transition-colors"
+          className="p-2 dark:hover:bg-gray-800 hover:bg-gray-200 rounded-full transition-colors"
         >
-          <LuArrowLeft size={24} />
+          <LuArrowLeft size={24} className="dark:text-white text-gray-900" />
         </button>
         <h2 className="text-3xl font-bold bg-linear-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
           Select Products to Track
@@ -45,7 +45,7 @@ const CandidateSelection: React.FC<CandidateSelectionProps> = ({
         ))}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-linear-to-t from-black via-black/90 to-transparent flex justify-center z-50">
+      <div className="fixed bottom-0 left-0 right-0 p-6 dark:bg-linear-to-t dark:from-black dark:via-black/90 dark:to-transparent bg-linear-to-t from-white via-white/90 to-transparent flex justify-center z-50 transition-colors">
         <button
           onClick={onTrackSelected}
           disabled={isTracking || selectedUrls.size === 0}
