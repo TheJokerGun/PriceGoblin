@@ -22,11 +22,28 @@ const CandidateCard: React.FC<CandidateCardProps> = ({
           : "border-gray-800 bg-gray-900/40 hover:border-gray-600"
       }`}
     >
-      <div className="absolute top-4 right-4 text-2xl">
+      <div className="absolute top-4 right-4 text-2xl z-10">
         {isSelected ? (
           <LuCircleCheck className="text-blue-500" />
         ) : (
           <LuCircle className="text-gray-600 group-hover:text-gray-400" />
+        )}
+      </div>
+      <div className="aspect-video mb-4 rounded-xl overflow-hidden bg-gray-800/50 flex items-center justify-center border border-gray-700/50 group-hover:border-blue-500/30 transition-colors">
+        {candidate.image_url ? (
+          <img 
+            src={candidate.image_url} 
+            alt={candidate.name}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x225?text=No+Image';
+            }}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-gray-600 gap-1 scale-75">
+            <span className="text-3xl">📦</span>
+            <span className="text-[8px] font-bold uppercase tracking-widest text-center">No Image Available</span>
+          </div>
         )}
       </div>
       <h3 className="font-bold text-lg mb-2 pr-8 line-clamp-2 text-white">

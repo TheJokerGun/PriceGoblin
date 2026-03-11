@@ -4,6 +4,7 @@ export interface Product {
   url: string;
   category: string | null;
   created_at: string;
+  image_url?: string;
 }
 
 export interface Price {
@@ -24,16 +25,17 @@ export interface ScrapedItem {
   price: number | string;
   source: string;
   url: string;
+  image_url?: string;
 }
 
 export interface ScrapeResult {
   type: "product" | "category";
   data?: ScrapedItem[];
-  // If it's a single product result from /scrape/url
   id?: number;
   name?: string;
   url?: string;
   price?: number | string;
   category?: string | null;
   created_at?: string;
+  image_url?: string;
 }

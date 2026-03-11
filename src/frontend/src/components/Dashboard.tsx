@@ -84,17 +84,18 @@ const Dashboard: React.FC<DashboardProps> = ({
               <h3 className="text-lg font-semibold mb-6 text-gray-500 uppercase tracking-widest">
                 Paused
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {inactiveProducts.map((p) => (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    price={prices[p.id]}
-                    isRefreshing={refreshing[p.id]}
-                    onRefresh={onRefreshPrice}
-                    onToggleTracking={onToggleTracking}
-                    onDelete={onDeleteTracking}
-                  />
+                  <div key={p.id} className="opacity-60 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300">
+                    <ProductCard
+                      product={p}
+                      price={prices[p.id]}
+                      isRefreshing={refreshing[p.id]}
+                      onRefresh={onRefreshPrice}
+                      onToggleTracking={onToggleTracking}
+                      onDelete={onDeleteTracking}
+                    />
+                  </div>
                 ))}
               </div>
             </section>

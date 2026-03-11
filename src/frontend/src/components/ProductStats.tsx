@@ -45,18 +45,39 @@ const ProductStats: React.FC<ProductStatsProps> = ({
           <LuDollarSign />
         </div>
         
-        <h1 className="text-3xl font-black mb-4 tracking-tight leading-tight" title={product.name}>
-          {product.name}
-        </h1>
-        
-        <a
-          href={product.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 font-bold mb-8 bg-blue-500/10 px-4 py-2 rounded-xl transition-colors"
-        >
-          Shop Source <LuExternalLink size={14} />
-        </a>
+        <div className="flex flex-col gap-6 mb-8 relative z-10">
+          <div className="w-full aspect-square rounded-4xl overflow-hidden bg-gray-800/50 flex items-center justify-center border border-gray-700/50 shrink-0">
+            {product.image_url ? (
+              <img 
+                src={product.image_url} 
+                alt={product.name}
+                className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x400?text=No+Image';
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-gray-600 gap-1 scale-75">
+                <span className="text-3xl">📦</span>
+                <span className="text-[8px] font-bold uppercase tracking-widest text-center">No Image</span>
+              </div>
+            )}
+          </div>
+          <div className="space-y-4">
+            <h1 className="text-3xl font-black tracking-tight leading-tight" title={product.name}>
+              {product.name}
+            </h1>
+            
+            <a
+              href={product.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 font-bold bg-blue-500/10 px-4 py-2 rounded-xl transition-colors w-fit"
+            >
+              Shop Source <LuExternalLink size={14} />
+            </a>
+          </div>
+        </div>
 
         <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-800/50">
           <div className="space-y-1">

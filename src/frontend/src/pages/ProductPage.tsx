@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import type { Product, Price, Tracking } from "../types";
 import api from "../api/client";
+import { showAlert } from "../utils/alerts";
 import { LuArrowLeft } from "react-icons/lu";
 
 import ProductHeader from "../components/ProductHeader";
@@ -63,7 +64,7 @@ const ProductPage = () => {
       setTracking({ ...tracking, is_active: !tracking.is_active });
     } catch (e) {
       console.error("Error toggling tracking", e);
-      alert("Failed to toggle status");
+      showAlert("Failed to toggle status");
     }
   };
 
@@ -74,7 +75,7 @@ const ProductPage = () => {
       setTracking({ ...tracking, target_price: targetPrice });
     } catch (e) {
       console.error("Error updating target price", e);
-      alert("Failed to update target price");
+      showAlert("Failed to update target price");
     }
   };
 

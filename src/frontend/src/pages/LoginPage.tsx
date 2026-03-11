@@ -19,6 +19,15 @@ const LoginPage = () => {
     }
   }, [isAuthenticated, navigate]);
 
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError("");
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -37,7 +46,11 @@ const LoginPage = () => {
       login(response.data.access_token);
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.detail || (isRegistering ? "Registration failed." : "Login failed."));
+      const rawDetail = err.response?.data?.detail;
+      const detail = typeof rawDetail === "string"
+        ? rawDetail
+        : (rawDetail ? JSON.stringify(rawDetail) : (isRegistering ? "Registration failed." : "Login failed."));
+      setError(detail);
     } finally {
       setIsLoading(false);
     }
