@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import type { Product, Price, Tracking } from "../types";
 import api from "../api/client";
 import { showAlert } from "../utils/alerts";
@@ -16,8 +16,10 @@ const ProductPage = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [prices, setPrices] = useState<Price[]>([]);
   const [tracking, setTracking] = useState<Tracking | null>(null);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const fetchProductData = async () => {
@@ -69,6 +71,33 @@ const ProductPage = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!tracking) return;
+    if (!window.confirm("Are you sure you want to delete this tracking?")) return;
+    try {
+      await api.delete(`/tracking/${tracking.id}`);
+      navigate('/home');
+    } catch (err) {
+      console.error("Error deleting tracking:", err);
+      showAlert("Failed to delete tracking");
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (!product) return;
+    setIsRefreshing(true);
+    try {
+      await api.post(`/products/${product.id}/check-price`);
+      const pricesResponse = await api.get<Price[]>(`/products/${product.id}/prices`);
+      setPrices(pricesResponse.data);
+    } catch (err) {
+      console.error(`Error refreshing price for product ${product.id}:`, err);
+      showAlert("Failed to refresh price");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const handleUpdateTargetPrice = async (targetPrice: number | null) => {
     if (!tracking) return;
     try {
@@ -114,7 +143,13 @@ const ProductPage = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 dark:text-white text-gray-900 space-y-8 transition-colors duration-300">
-      <ProductHeader tracking={tracking} onToggleTracking={handleToggleTracking} />
+      <ProductHeader 
+        tracking={tracking} 
+        onToggleTracking={handleToggleTracking}
+        isRefreshing={isRefreshing}
+        onRefresh={handleRefresh}
+        onDelete={handleDelete}
+      />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <ProductStats
           product={product}
