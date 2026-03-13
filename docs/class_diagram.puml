@@ -1,0 +1,103 @@
+@startuml Class Diagram
+skinparam linetype ortho
+
+package "Contexts" {
+  class AuthContext {
+    +token: string | null
+    +isAuthenticated: boolean
+    +login(token: string)
+    +logout()
+  }
+  class ThemeContext {
+    +theme: 'light' | 'dark'
+    +toggleTheme()
+  }
+}
+
+package "Pages" {
+  class LoginPage {
+    -email: string
+    -password: string
+    +handleSubmit()
+  }
+  class HomePage {
+    -products: Product[]
+    -trackings: Tracking[]
+    +fetchData()
+    +handleTrackProduct()
+  }
+  class ProductPage {
+    -product: Product
+    -prices: Price[]
+    +handleToggleTracking()
+    +handleRefresh()
+  }
+}
+
+package "Components" {
+  class SearchSection {
+    +url: string
+    +category: string
+    +handleTrackProduct()
+  }
+  class Dashboard {
+    +activeProducts: Product[]
+    +inactiveProducts: Product[]
+  }
+  class ProductCard {
+    +product: Product
+    +price: number
+    +onRefresh()
+    +onDelete()
+  }
+  class CandidateSelection {
+    +candidates: ScrapedItem[]
+    +onTrackSelected()
+  }
+  class PriceChart {
+    +prices: Price[]
+  }
+}
+
+package "API" {
+  class APIClient << (S,#FF7700) Singleton >> {
+    +get(url: string)
+    +post(url: string, data: any)
+    +patch(url: string, data: any)
+    +delete(url: string)
+  }
+}
+
+package "Types" {
+  interface Product {
+    +id: number
+    +name: string
+    +url: string
+    +image_url: string
+  }
+  interface Tracking {
+    +id: number
+    +product_id: number
+    +is_active: boolean
+    +target_price: number | null
+  }
+  interface Price {
+    +id: number
+    +price: number
+    +checked_at: string
+  }
+}
+
+HomePage *-- SearchSection
+HomePage *-- Dashboard
+HomePage *-- CandidateSelection
+Dashboard "1" *-- "many" ProductCard
+ProductPage *-- PriceChart
+LoginPage ..> AuthContext : uses
+HomePage ..> APIClient : uses
+ProductPage ..> APIClient : uses
+ProductCard -- Product
+Tracking -- Product
+Price -- Product
+
+@enduml
