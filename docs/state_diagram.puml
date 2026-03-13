@@ -1,0 +1,28 @@
+@startuml State Diagram
+[*] --> NotTracked : Start Search
+
+state NotTracked {
+  [*] --> Searching
+  Searching --> CandidateFound : API Response (Category)
+  Searching --> Tracked : API Response (URL)
+}
+
+CandidateFound --> Tracked : Bulk Add Selected
+CandidateFound --> NotTracked : Cancel / Back
+
+state Tracked {
+  [*] --> Active : Default
+  Active --> Paused : Click "Pause Watch"
+  Paused --> Active : Click "Resume Watch"
+  Active --> Active : Refresh Price
+  
+  state Active {
+    [*] --> Healthy
+    Healthy --> Error : Price Scrape Failed
+    Error --> Healthy : Next Scrape Success
+  }
+}
+
+Tracked --> NotTracked : Delete Tracking
+NotTracked --> [*] : Finish
+@enduml

@@ -1,0 +1,37 @@
+@startuml Use Case Diagram
+left to right direction
+actor "User" as user
+actor "External Source (Amazon, eBay, etc.)" as source
+
+package "PriceGoblin Frontend" {
+  usecase "Register / Login" as login
+  usecase "Search by URL" as search_url
+  usecase "Search by Category/Name" as search_cat
+  usecase "Select Candidates" as select
+  usecase "View Watchlist" as view_watch
+  usecase "View Product Details" as view_details
+  usecase "Refresh Price" as refresh
+  usecase "Toggle Tracking (Pause/Resume)" as toggle
+  usecase "Delete Tracking" as delete
+  usecase "Set Target Price" as target
+  usecase "Toggle Theme (Dark/Light)" as theme
+}
+
+user --> login
+user --> search_url
+user --> search_cat
+user --> view_watch
+user --> view_details
+user --> theme
+
+search_cat ..> select : <<include>>
+view_watch ..> refresh : <<extend>>
+view_watch ..> toggle : <<extend>>
+view_watch ..> delete : <<extend>>
+view_details ..> refresh : <<extend>>
+view_details ..> target : <<extend>>
+
+source -- search_url
+source -- search_cat
+source -- refresh
+@enduml

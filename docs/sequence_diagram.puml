@@ -1,0 +1,32 @@
+@startuml Sequence Diagram
+actor User
+participant LoginPage
+participant AuthContext
+participant APIClient
+participant Backend
+database Database
+
+User -> LoginPage: Enter email & password
+User -> LoginPage: Click "Access Watchlist"
+
+LoginPage -> AuthContext: login(password) // Base64 encoded
+AuthContext -> APIClient: POST /auth/login
+APIClient -> Backend: Request Authentication
+
+Backend -> Database: Find User by Email
+Database --> Backend: User data (hashed password)
+
+Backend -> Backend: Validate Password
+alt Success
+  Backend -> Backend: Generate JWT Token
+  Backend --> APIClient: { access_token: "...", token_type: "bearer" }
+  APIClient --> AuthContext: Response
+  AuthContext -> AuthContext: Save token to localStorage
+  AuthContext -> AuthContext: Set isAuthenticated = true
+  LoginPage -> LoginPage: navigate("/home")
+else Failure
+  Backend --> APIClient: 401 Unauthorized
+  APIClient --> AuthContext: Error
+  AuthContext --> LoginPage: Display Error Message
+end
+@enduml
