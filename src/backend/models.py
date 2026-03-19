@@ -48,6 +48,7 @@ class PriceEntry(Base):
     )
 
     product: Mapped["Product"] = relationship(back_populates="prices")
+    notifications: Mapped[list["NotificationLog"]] = relationship(back_populates="price_entry")
 
 
 class Tracking(Base):
@@ -66,3 +67,23 @@ class Tracking(Base):
 
     user: Mapped["User"] = relationship(back_populates="trackings")
     product: Mapped["Product"] = relationship(back_populates="trackings")
+    notifications: Mapped[list["NotificationLog"]] = relationship(back_populates="tracking")
+
+
+class NotificationLog(Base):
+    __tablename__ = "notification_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    tracking_id: Mapped[int] = mapped_column(ForeignKey("tracking.id"), index=True)
+    price_entry_id: Mapped[int | None] = mapped_column(ForeignKey("price_entries.id"), nullable=True)
+    channel: Mapped[str] = mapped_column(String, nullable=False)
+    recipient: Mapped[str] = mapped_column(String, nullable=False)
+    notified_price: Mapped[float] = mapped_column(Float)
+    target_price: Mapped[float] = mapped_column(Float)
+    notified_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    tracking: Mapped["Tracking"] = relationship(back_populates="notifications")
+    price_entry: Mapped["PriceEntry"] = relationship(back_populates="notifications")

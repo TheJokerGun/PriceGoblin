@@ -7,6 +7,7 @@ PriceGoblin is a backend service that helps users track product prices across su
 - **Product**: Unique product entry shared across users. Fields include `name`, `url`, `category`, `image_url`, and timestamps.
 - **Tracking**: Join table between users and products. Stores `is_active`, `source`, and `target_price` for notifications.
 - **PriceEntry**: Time-series price history for a product.
+- **NotificationLog**: Email notification audit log keyed by tracking entry.
 - **User**: Account owner of tracking entries.
 
 ## Main Flows
@@ -57,6 +58,40 @@ These control logging and SQL output. All of them are optional.
 - `UVICORN_ACCESS_LOG`
   - `true` enables Uvicorn access logs.
   - `false` (default) suppresses access logs so you rely on structured API logs.
+
+## Notification Emails
+Price drop notifications are sent via email when a tracked item's price is at or below its target price.
+Emails are only sent if a supported provider is configured.
+
+### Email Providers
+Set `EMAIL_PROVIDER` to one of: `resend`, `sendgrid`, or `postmark`.
+
+### Email Configuration Variables
+- `EMAIL_PROVIDER`
+  - `resend`, `sendgrid`, or `postmark`
+- `EMAIL_FROM`
+  - Sender address used by the provider.
+- `EMAIL_REPLY_TO` (optional)
+  - Reply-To address for outbound messages.
+- `RESEND_API_KEY`
+  - Required if `EMAIL_PROVIDER=resend`.
+- `SENDGRID_API_KEY`
+  - Required if `EMAIL_PROVIDER=sendgrid`.
+- `POSTMARK_SERVER_TOKEN`
+  - Required if `EMAIL_PROVIDER=postmark`.
+- `POSTMARK_MESSAGE_STREAM` (optional)
+  - Defaults to Postmark's `outbound` stream if unset.
+
+### Notification Throttling
+- `NOTIFICATION_COOLDOWN_HOURS`
+  - Default: `24`. Set to `0` to allow notifications on every qualifying check.
+- `NOTIFICATION_PRICE_EPSILON`
+  - Default: `0.01`. Price must drop by more than this to notify again before cooldown expires.
+
+### Teams Webhook
+Set a Teams incoming webhook URL to receive price alerts in a channel.
+- `TEAMS_WEBHOOK_URL`
+  - Incoming webhook URL for the channel where notifications should appear.
 
 ## Debugging Tips
 - For deeper request context, set:

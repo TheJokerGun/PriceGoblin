@@ -47,7 +47,7 @@ def main() -> int:
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute("PRAGMA foreign_keys=OFF")
-    tables = ["price_entries", "tracking", "products"]
+    tables = ["notification_logs", "price_entries", "tracking", "products"]
     if args.include_users:
         tables.append("users")
     for table in tables:

@@ -1,5 +1,6 @@
 import logging
 from time import perf_counter
+from typing import Awaitable, Callable
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
@@ -11,7 +12,7 @@ from fastapi.exception_handlers import (
 )
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from src.backend.logging_utils import (
     configure_logging,
@@ -53,13 +54,14 @@ def _infer_expected_from_http_exception(exc: HTTPException) -> list[str] | None:
     }
     return details_to_expected.get(exc.detail)
 
+
 # Development CORS: allow same-network access and preflight requests
 app.add_middleware(
-	CORSMiddleware,
-	allow_origins=["*"],
-	allow_credentials=True,
-	allow_methods=["*"],
-	allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(scrape_router)
@@ -69,7 +71,10 @@ app.include_router(tracking_router)
 
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
+async def log_requests(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+):
     request.state.request_id = uuid4().hex
     start = perf_counter()
     if should_log_request_received(request):
