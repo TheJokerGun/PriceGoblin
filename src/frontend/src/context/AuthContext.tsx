@@ -6,6 +6,9 @@ import React, {
   type ReactNode,
 } from "react";
 
+const TOKEN_STORAGE_KEY = "pricegoblin.auth.token";
+const LEGACY_TOKEN_STORAGE_KEY = "token";
+
 interface AuthContextType {
   token: string | null;
   login: (token: string) => void;
@@ -18,15 +21,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem("token"),
+  const [token, setToken] = useState<string | null>(() =>
+    localStorage.getItem(TOKEN_STORAGE_KEY) ??
+      localStorage.getItem(LEGACY_TOKEN_STORAGE_KEY),
   );
 
   useEffect(() => {
     if (token) {
-      localStorage.setItem("token", token);
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
     } else {
-      localStorage.removeItem("token");
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY);
     }
   }, [token]);
 
@@ -40,6 +46,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   return (
     <AuthContext.Provider
+      // Keep this derived value centralized so route guards stay simple.
       value={{ token, login, logout, isAuthenticated: !!token }}
     >
       {children}

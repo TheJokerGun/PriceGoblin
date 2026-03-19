@@ -1,8 +1,13 @@
 export interface Product {
   id: number;
-  name: string;
-  url: string;
+  name: string | null;
+  url: string | null;
   category: string | null;
+  image_url: string | null;
+  tracking_id: number | null;
+  is_active: boolean | null;
+  source: string | null;
+  target_price: number | null;
   created_at: string;
 }
 

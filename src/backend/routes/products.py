@@ -18,7 +18,7 @@ def create_product(
     product: ProductCreate,
     db: Session = Depends(get_db),
     current_user=Depends(auth_service.get_current_user)
-) -> product_service.Product:
+) -> ProductResponse:
     if not product.name and not product.url and not product.category:
         raise HTTPException(
             status_code=400,
@@ -47,7 +47,7 @@ def create_products_bulk_from_category(
 def get_products(
     db: Session = Depends(get_db),
     current_user=Depends(auth_service.get_current_user)
-) -> product_service.List[product_service.Product]:
+) -> list[ProductResponse]:
     return product_service.get_user_products(db, current_user.id)
 
 
@@ -56,7 +56,7 @@ def get_product(
     product_id: int,
     db: Session = Depends(get_db),
     current_user=Depends(auth_service.get_current_user)
-) -> product_service.Product:
+) -> ProductResponse:
     product = product_service.get_product_by_id(db, current_user.id, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")

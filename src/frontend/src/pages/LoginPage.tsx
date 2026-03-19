@@ -7,6 +7,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -16,7 +17,17 @@ const LoginPage = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  const handleSubmit = async (e: React.SubmitEvent) => {
+  const authenticate = async (path: "/auth/login" | "/auth/register") => {
+    setIsSubmitting(true);
+    try {
+      const response = await api.post(path, { email, password });
+      login(response.data.access_token);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
 
@@ -27,8 +38,7 @@ const LoginPage = () => {
     }
 
     try {
-      const response = await api.post("/auth/login", { email, password });
-      login(response.data.access_token);
+      await authenticate("/auth/login");
     } catch (err) {
       console.error(err);
       setError("Login failed. Please check your credentials.");
@@ -40,11 +50,7 @@ const LoginPage = () => {
     setError("");
 
     try {
-      const response = await api.post("/auth/register", {
-        email: email,
-        password: password,
-      });
-      login(response.data.access_token);
+      await authenticate("/auth/register");
     } catch (err) {
       console.error(err);
       setError("Registration failed. Please try again.");
@@ -90,16 +96,18 @@ const LoginPage = () => {
           <div className="flex gap-4">
             <button
               type="submit"
+              disabled={isSubmitting}
               className="flex-1 bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition duration-200"
             >
-              Log In
+              {isSubmitting ? "Working..." : "Log In"}
             </button>
             <button
               type="button"
               onClick={handleRegister}
+              disabled={isSubmitting}
               className="flex-1 bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition duration-200"
             >
-              Register
+              {isSubmitting ? "Working..." : "Register"}
             </button>
           </div>
         </form>

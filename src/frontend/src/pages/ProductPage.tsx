@@ -1,17 +1,26 @@
-import { useState, useEffect } from "react";
-import { useSearchParams, Link } from "react-router-dom";
-import type { Product, Price } from "../types";
-import api from "../api/client";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
-  LineChart,
+  CartesianGrid,
+  Legend,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
 } from "recharts";
+import api from "../api/client";
+import type { Price, Product } from "../types";
+import { readLocalStorageJson, writeLocalStorageJson } from "../utils/storage";
+
+const PRODUCT_CACHE_DURATION_MS = 60 * 60 * 1000;
+
+type ProductPageCache = {
+  product: Product;
+  prices: Price[];
+  timestamp: number;
+};
 
 const ProductPage = () => {
   const [searchParams] = useSearchParams();
@@ -22,67 +31,82 @@ const ProductPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isCancelled = false;
+
     const fetchProductData = async () => {
-      if (!id) return;
-
-      const CACHE_KEY = `product_page_cache_${id}`;
-      const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
-      const now = Date.now();
-
-      const cachedData = localStorage.getItem(CACHE_KEY);
-      if (cachedData) {
-        const {
-          timestamp,
-          product,
-          prices: cachedPrices,
-        } = JSON.parse(cachedData);
-        if (now - timestamp < CACHE_DURATION) {
-          setProduct(product);
-          setPrices(cachedPrices);
-          setLoading(false);
-          return;
-        }
+      if (!id) {
+        setError("Missing product id.");
+        setLoading(false);
+        return;
       }
 
       setLoading(true);
       setError(null);
+
+      const cacheKey = `product_page_cache_${id}`;
+      const cachedData = readLocalStorageJson<ProductPageCache | null>(
+        cacheKey,
+        null,
+      );
+      if (
+        cachedData &&
+        Date.now() - cachedData.timestamp < PRODUCT_CACHE_DURATION_MS
+      ) {
+        if (!isCancelled) {
+          setProduct(cachedData.product);
+          setPrices(cachedData.prices);
+          setLoading(false);
+        }
+        return;
+      }
+
       try {
         const [productResponse, pricesResponse] = await Promise.all([
           api.get<Product>(`/products/${id}`),
           api.get<Price[]>(`/products/${id}/prices`),
         ]);
 
+        if (isCancelled) {
+          return;
+        }
+
         setProduct(productResponse.data);
         setPrices(pricesResponse.data);
-
-        localStorage.setItem(
-          CACHE_KEY,
-          JSON.stringify({
-            product: productResponse.data,
-            prices: pricesResponse.data,
-            timestamp: now,
-          }),
-        );
-      } catch (err) {
-        console.error("Error fetching product data:", err);
-        setError("Failed to fetch product data.");
+        writeLocalStorageJson<ProductPageCache>(cacheKey, {
+          product: productResponse.data,
+          prices: pricesResponse.data,
+          timestamp: Date.now(),
+        });
+      } catch (requestError) {
+        console.error("Error fetching product data:", requestError);
+        if (!isCancelled) {
+          setError("Failed to fetch product data.");
+        }
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchProductData();
+    void fetchProductData();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [id]);
 
-  const formattedPrices = prices.map((p) => ({
-    date: new Date(p.checked_at).toLocaleString(),
-    price: Number(p.price),
-  }));
+  const formattedPrices = useMemo(
+    () =>
+      prices.map((priceEntry) => ({
+        date: new Date(priceEntry.checked_at).toLocaleString(),
+        price: Number(priceEntry.price),
+      })),
+    [prices],
+  );
 
   if (loading) {
-    return (
-      <div className="text-center text-white">Loading product details...</div>
-    );
+    return <div className="text-center text-white">Loading product details...</div>;
   }
 
   if (error) {
@@ -101,17 +125,21 @@ const ProductPage = () => {
         </Link>
       </div>
       <div className="bg-purple-950 p-8 rounded-lg shadow-lg border-2 border-gray-400">
-        <h1 className="text-3xl font-bold mb-2 truncate" title={product.name}>
-          {product.name}
+        <h1 className="text-3xl font-bold mb-2 truncate" title={product.name ?? "Unknown product"}>
+          {product.name ?? "Unknown product"}
         </h1>
-        <a
-          href={product.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm text-blue-400 hover:underline break-all"
-        >
-          {product.url}
-        </a>
+        {product.url ? (
+          <a
+            href={product.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-blue-400 hover:underline break-all"
+          >
+            {product.url}
+          </a>
+        ) : (
+          <p className="text-sm text-gray-400">No source URL saved for this product.</p>
+        )}
         <p className="text-gray-400 text-xs mt-2">
           Tracked since: {new Date(product.created_at).toLocaleDateString()}
         </p>

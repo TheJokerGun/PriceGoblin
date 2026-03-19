@@ -1,7 +1,18 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/client";
-import type { Product } from "../types";
+import type { Price, Product } from "../types";
+import { readLocalStorageJson, writeLocalStorageJson } from "../utils/storage";
+
+const PRICE_CACHE_KEY = "product_price_cache";
+const PRICE_CACHE_DURATION_MS = 60 * 60 * 1000;
+
+type CachedPrice = {
+  price: number;
+  timestamp: number;
+};
+
+type PriceCache = Record<number, CachedPrice>;
 
 function HomePage() {
   const [url, setUrl] = useState("");
@@ -9,11 +20,12 @@ function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isProductsLoading, setIsProductsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [prices, setPrices] = useState<Record<number, string | number>>({});
+  const [prices, setPrices] = useState<Record<number, number>>({});
   const [category, setCategory] = useState("general");
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setIsProductsLoading(true);
+    setError(null);
     try {
       const response = await api.get<Product[]>("/products");
       setProducts(response.data);
@@ -23,53 +35,89 @@ function HomePage() {
     } finally {
       setIsProductsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    1;
-    fetchProducts();
   }, []);
 
   useEffect(() => {
-    const CACHE_KEY = "product_price_cache";
-    const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
-    const now = Date.now();
-    const cachedData = localStorage.getItem(CACHE_KEY);
-    const cache = cachedData ? JSON.parse(cachedData) : {};
+    void fetchProducts();
+  }, [fetchProducts]);
 
-    products.forEach((product) => {
-      const cachedItem = cache[product.id];
-      if (cachedItem && now - cachedItem.timestamp < CACHE_DURATION) {
-        setPrices((prev) => ({ ...prev, [product.id]: cachedItem.price }));
-      } else {
-        api
-          .post(`/products/${product.id}/check-price`)
-          .then((response) => {
-            setPrices((prev) => ({
-              ...prev,
-              [product.id]: response.data.price,
-            }));
-            const currentCache = JSON.parse(
-              localStorage.getItem(CACHE_KEY) || "{}",
-            );
-            currentCache[product.id] = {
-              price: response.data.price,
-              timestamp: Date.now(),
-            };
-            localStorage.setItem(CACHE_KEY, JSON.stringify(currentCache));
-          })
-          .catch((err) =>
-            console.error(
-              `Error fetching price for product ${product.id}:`,
-              err,
-            ),
-          );
+  useEffect(() => {
+    let isCancelled = false;
+
+    const syncPrices = async () => {
+      const now = Date.now();
+      const cache = readLocalStorageJson<PriceCache>(PRICE_CACHE_KEY, {});
+      const nextPrices: Record<number, number> = {};
+      const idsToRefresh: number[] = [];
+
+      for (const product of products) {
+        const cachedItem = cache[product.id];
+        if (cachedItem && now - cachedItem.timestamp < PRICE_CACHE_DURATION_MS) {
+          nextPrices[product.id] = cachedItem.price;
+          continue;
+        }
+        idsToRefresh.push(product.id);
       }
-    });
+
+      if (!isCancelled) {
+        setPrices(nextPrices);
+      }
+
+      if (idsToRefresh.length === 0) {
+        return;
+      }
+
+      const updatedCache: PriceCache = { ...cache };
+      const refreshedPrices: Record<number, number> = {};
+
+      const refreshResults = await Promise.allSettled(
+        idsToRefresh.map((productId) =>
+          api.post<Price>(`/products/${productId}/check-price`),
+        ),
+      );
+
+      refreshResults.forEach((result, index) => {
+        const productId = idsToRefresh[index];
+        if (result.status !== "fulfilled") {
+          console.error(
+            `Error fetching price for product ${productId}:`,
+            result.reason,
+          );
+          return;
+        }
+
+        const price = Number(result.value.data.price);
+        refreshedPrices[productId] = price;
+        updatedCache[productId] = {
+          price,
+          timestamp: Date.now(),
+        };
+      });
+
+      if (Object.keys(refreshedPrices).length > 0) {
+        // Only write after successful fetches so we don't extend stale cache entries.
+        writeLocalStorageJson(PRICE_CACHE_KEY, updatedCache);
+      }
+
+      if (!isCancelled && Object.keys(refreshedPrices).length > 0) {
+        setPrices((prev) => ({ ...prev, ...refreshedPrices }));
+      }
+    };
+
+    if (products.length > 0) {
+      void syncPrices();
+    } else {
+      setPrices({});
+    }
+
+    return () => {
+      isCancelled = true;
+    };
   }, [products]);
 
   const handleTrackProduct = async () => {
-    if (!url.trim()) {
+    const normalizedUrl = url.trim();
+    if (!normalizedUrl) {
       alert("Please enter a URL to track.");
       return;
     }
@@ -78,26 +126,29 @@ function HomePage() {
     try {
       const payload = {
         name: "",
-        url: url,
-        category: category,
+        url: normalizedUrl,
+        category,
       };
-      const response = await api.post("/products", payload);
-      alert(`Product tracking started for: ${response.data.name}`);
+      const response = await api.post<Product>("/products", payload);
+      alert(`Product tracking started for: ${response.data.name ?? "Unknown product"}`);
       setUrl("");
       await fetchProducts();
-    } catch (error) {
-      console.error("Error tracking product:", error);
+    } catch (requestError) {
+      console.error("Error tracking product:", requestError);
       alert("Failed to track product. Check console for details.");
     } finally {
       setIsTracking(false);
     }
   };
 
-  const getDomain = (url: string) => {
+  const getDomain = (value: string | null) => {
+    if (!value) {
+      return "No URL";
+    }
     try {
-      return new URL(url).hostname;
-    } catch (e) {
-      return url;
+      return new URL(value).hostname;
+    } catch {
+      return value;
     }
   };
 
@@ -150,21 +201,20 @@ function HomePage() {
             >
               <h3
                 className="font-bold text-lg truncate text-gray-300"
-                title={product.name}
+                title={product.name ?? "Unknown product"}
               >
-                {product.name}
+                {product.name ?? "Unknown product"}
               </h3>
               {prices[product.id] !== undefined && (
                 <p className="text-green-500 font-bold mt-2">
-                  Price: {prices[product.id]}
+                  Price: {prices[product.id].toFixed(2)}
                 </p>
               )}
               <p className="text-gray-400 text-sm break-all">
                 {getDomain(product.url)}
               </p>
               <p className="text-gray-400 text-xs mt-2">
-                Tracked since:{" "}
-                {new Date(product.created_at).toLocaleDateString()}
+                Tracked since: {new Date(product.created_at).toLocaleDateString()}
               </p>
             </Link>
           ))}

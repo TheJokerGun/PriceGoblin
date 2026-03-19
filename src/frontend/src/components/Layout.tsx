@@ -4,17 +4,15 @@ import logo from "../assets/logo.png";
 import { FiLogIn, FiLogOut } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
 
-const Layout: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
+const Layout: React.FC<React.PropsWithChildren> = ({ children }) => {
   const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleAuthClick = () => {
     if (isAuthenticated) {
       logout();
-      navigate("/login");
-    } else {
-      navigate("/login");
     }
+    navigate("/login");
   };
 
   return (
