@@ -1,28 +1,21 @@
-@startuml State Diagram
-[*] --> NotTracked : Start Search
+@startuml StateDiagram
+[*] --> Active : Tracking created
 
-state NotTracked {
-  [*] --> Searching
-  Searching --> CandidateFound : API Response (Category)
-  Searching --> Tracked : API Response (URL)
+state Active {
+  [*] --> Monitoring
+  Monitoring --> PriceChecked : check-price requested
+  PriceChecked --> Monitoring : price stored
+
+  PriceChecked --> TargetReached : price <= target_price
+  TargetReached --> NotificationCooldown : notification sent
+  NotificationCooldown --> Monitoring : cooldown elapsed
+  TargetReached --> Monitoring : notification skipped (cooldown/epsilon)
 }
 
-CandidateFound --> Tracked : Bulk Add Selected
-CandidateFound --> NotTracked : Cancel / Back
+Active --> Paused : PATCH /api/tracking/{id}/active (false)
+Paused --> Active : PATCH /api/tracking/{id}/active (true)
 
-state Tracked {
-  [*] --> Active : Default
-  Active --> Paused : Click "Pause Watch"
-  Paused --> Active : Click "Resume Watch"
-  Active --> Active : Refresh Price
-  
-  state Active {
-    [*] --> Healthy
-    Healthy --> Error : Price Scrape Failed
-    Error --> Healthy : Next Scrape Success
-  }
-}
-
-Tracked --> NotTracked : Delete Tracking
-NotTracked --> [*] : Finish
+Active --> Removed : DELETE /api/products/{id}
+Paused --> Removed : DELETE /api/products/{id}
+Removed --> [*]
 @enduml

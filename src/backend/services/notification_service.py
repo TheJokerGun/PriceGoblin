@@ -288,7 +288,11 @@ def _should_notify_again(price: float, last_log: NotificationLog) -> bool:
         return True
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=cooldown)
-    return last_log.notified_at < cutoff
+    notified_at = last_log.notified_at
+    # SQLite can return naive datetimes even for timezone=True columns.
+    if notified_at.tzinfo is None:
+        notified_at = notified_at.replace(tzinfo=timezone.utc)
+    return notified_at < cutoff
 
 
 def maybe_notify_price_drop(

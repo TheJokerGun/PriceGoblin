@@ -5,6 +5,8 @@ Price Goblin is a unified price-watching and deal-tracking project that aggregat
 - API contract: `docs/API_CONTRACT_OVERVIEW.md`
 - Next work checklist: `docs/TODO_NEXT_STEPS.md`
 - Endpoint testing guide: `docs/ENDPOINT_TESTING.md`
+- Backend automated tests + protocol logging: `docs/BACKEND_AUTOMATED_TESTING.md`
+- User manual: `docs/USER_MANUAL.md`
 
 ## Scraper Debugging
 Use this when validating selectors against a new website or troubleshooting scraper failures.

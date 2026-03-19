@@ -1,37 +1,43 @@
-@startuml Use Case Diagram
+@startuml UseCaseDiagram
 left to right direction
-actor "User" as user
-actor "External Source (Amazon, eBay, etc.)" as source
 
-package "PriceGoblin Frontend" {
-  usecase "Register / Login" as login
-  usecase "Search by URL" as search_url
-  usecase "Search by Category/Name" as search_cat
-  usecase "Select Candidates" as select
-  usecase "View Watchlist" as view_watch
-  usecase "View Product Details" as view_details
-  usecase "Refresh Price" as refresh
-  usecase "Toggle Tracking (Pause/Resume)" as toggle
-  usecase "Delete Tracking" as delete
-  usecase "Set Target Price" as target
-  usecase "Toggle Theme (Dark/Light)" as theme
+actor "User" as User
+actor "Marketplace Website" as Marketplace
+actor "Email Provider" as Email
+actor "Teams Webhook" as Teams
+
+rectangle "PriceGoblin System" {
+  usecase "Register / Login" as UC_Login
+  usecase "Track Product by URL" as UC_TrackUrl
+  usecase "Search Category Candidates" as UC_ScrapeCategory
+  usecase "Track Selected Candidates (Bulk)" as UC_BulkTrack
+  usecase "View Tracked Products" as UC_ViewProducts
+  usecase "View Product Price History" as UC_ViewHistory
+  usecase "Check Current Price" as UC_CheckPrice
+  usecase "Pause / Resume Tracking" as UC_ToggleActive
+  usecase "Set Target Price" as UC_SetTarget
+  usecase "Delete Tracking" as UC_Delete
+  usecase "Send Price Drop Notification" as UC_Notify
 }
 
-user --> login
-user --> search_url
-user --> search_cat
-user --> view_watch
-user --> view_details
-user --> theme
+User --> UC_Login
+User --> UC_TrackUrl
+User --> UC_ScrapeCategory
+User --> UC_BulkTrack
+User --> UC_ViewProducts
+User --> UC_ViewHistory
+User --> UC_CheckPrice
+User --> UC_ToggleActive
+User --> UC_SetTarget
+User --> UC_Delete
 
-search_cat ..> select : <<include>>
-view_watch ..> refresh : <<extend>>
-view_watch ..> toggle : <<extend>>
-view_watch ..> delete : <<extend>>
-view_details ..> refresh : <<extend>>
-view_details ..> target : <<extend>>
+UC_TrackUrl ..> UC_CheckPrice : <<include>>
+UC_BulkTrack ..> UC_ViewProducts : <<include>>
+UC_CheckPrice ..> UC_Notify : <<extend>>
 
-source -- search_url
-source -- search_cat
-source -- refresh
+Marketplace --> UC_TrackUrl
+Marketplace --> UC_ScrapeCategory
+Marketplace --> UC_CheckPrice
+Email --> UC_Notify
+Teams --> UC_Notify
 @enduml

@@ -1,32 +1,59 @@
-@startuml DB Model
- 
+@startuml DBModel
+
 entity users {
   + id : integer <<PK>>
   --
-  username : varchar
+  email : varchar
   password_hash : varchar
+  locale : varchar
+  created_at : timestamp
 }
- 
+
 entity products {
   + id : integer <<PK>>
   --
-  user_id : integer <<FK>>
   name : varchar
   url : varchar
   category : varchar
+  image_url : varchar
   created_at : timestamp
 }
- 
+
+entity tracking {
+  + id : integer <<PK>>
+  --
+  user_id : integer <<FK>>
+  product_id : integer <<FK>>
+  is_active : boolean
+  source : varchar
+  target_price : float
+  created_at : timestamp
+}
+
 entity price_entries {
   + id : integer <<PK>>
   --
   product_id : integer <<FK>>
-  price : decimal
+  price : float
   created_at : timestamp
 }
- 
-' Relationships
-users ||--o{ products : "tracks"
-products ||--o{ price_entries : "has"
- 
+
+entity notification_logs {
+  + id : integer <<PK>>
+  --
+  tracking_id : integer <<FK>>
+  price_entry_id : integer <<FK, nullable>>
+  channel : varchar
+  recipient : varchar
+  notified_price : float
+  target_price : float
+  notified_at : timestamp
+}
+
+users ||--o{ tracking : owns
+products ||--o{ tracking : tracked_as
+products ||--o{ price_entries : has_prices
+tracking ||--o{ notification_logs : emits
+price_entries ||--o{ notification_logs : referenced_by
+
 @enduml

@@ -1,32 +1,43 @@
-@startuml Sequence Diagram
+@startuml SequenceDiagram
 actor User
-participant LoginPage
-participant AuthContext
-participant APIClient
-participant Backend
-database Database
+participant "Frontend (HomePage)" as Frontend
+participant "API Client" as API
+participant "Products Router" as ProductsRoute
+participant "Product Service" as ProductService
+participant "URL Product Scraper" as UrlScraper
+participant "Notification Service" as NotificationService
+database "SQLite DB" as DB
+participant "Email Provider" as Email
+participant "Teams Webhook" as Teams
 
-User -> LoginPage: Enter email & password
-User -> LoginPage: Click "Access Watchlist"
+User -> Frontend: Click "Check Price"
+Frontend -> API: POST /api/products/{id}/check-price
+API -> ProductsRoute: Authorized request
+ProductsRoute -> ProductService: check_product_price(user_id, product_id)
 
-LoginPage -> AuthContext: login(password) // Base64 encoded
-AuthContext -> APIClient: POST /auth/login
-APIClient -> Backend: Request Authentication
+ProductService -> DB: Load product + tracking context
+DB --> ProductService: Product + Tracking
 
-Backend -> Database: Find User by Email
-Database --> Backend: User data (hashed password)
-
-Backend -> Backend: Validate Password
-alt Success
-  Backend -> Backend: Generate JWT Token
-  Backend --> APIClient: { access_token: "...", token_type: "bearer" }
-  APIClient --> AuthContext: Response
-  AuthContext -> AuthContext: Save token to localStorage
-  AuthContext -> AuthContext: Set isAuthenticated = true
-  LoginPage -> LoginPage: navigate("/home")
-else Failure
-  Backend --> APIClient: 401 Unauthorized
-  APIClient --> AuthContext: Error
-  AuthContext --> LoginPage: Display Error Message
+alt Product has URL
+  ProductService -> UrlScraper: scrape_product_data(url, locale)
+  UrlScraper --> ProductService: price (or none)
+else No URL
+  ProductService -> ProductService: use fallback price logic
 end
+
+ProductService -> DB: Insert PriceEntry
+ProductService -> NotificationService: maybe_notify_price_drop(...)
+
+alt Target reached and notification allowed
+  NotificationService -> Email: send email alert
+  NotificationService -> Teams: send webhook card
+  NotificationService -> DB: Insert NotificationLog entries
+else Not eligible (inactive / no target / cooldown)
+  NotificationService -> NotificationService: skip notification
+end
+
+ProductService --> ProductsRoute: PriceEntry
+ProductsRoute --> API: PriceResponse
+API --> Frontend: 200 OK + latest price
+Frontend --> User: Updated price shown
 @enduml

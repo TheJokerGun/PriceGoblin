@@ -1,103 +1,158 @@
-@startuml Class Diagram
+@startuml ClassDiagram
 skinparam linetype ortho
+skinparam packageStyle rectangle
 
-package "Contexts" {
-  class AuthContext {
-    +token: string | null
-    +isAuthenticated: boolean
-    +login(token: string)
-    +logout()
+package "API Layer" {
+  class AuthRouter <<FastAPI Router>> {
+    +register()
+    +login()
+    +read_current_user()
   }
-  class ThemeContext {
-    +theme: 'light' | 'dark'
-    +toggleTheme()
+
+  class ProductsRouter <<FastAPI Router>> {
+    +create_product()
+    +create_products_bulk_from_category()
+    +get_products()
+    +get_product()
+    +delete_product()
+    +get_product_prices()
+    +get_product_current_price()
+    +check_product_price()
+  }
+
+  class ScraperRouter <<FastAPI Router>> {
+    +scrape_url()
+    +scrape_category()
+    +scrape()
+  }
+
+  class TrackingRouter <<FastAPI Router>> {
+    +get_tracking()
+    +update_tracking_active()
+    +update_tracking_target_price()
+    +delete_tracking()
   }
 }
 
-package "Pages" {
-  class LoginPage {
-    -email: string
-    -password: string
-    +handleSubmit()
+package "Service Layer" {
+  class AuthService {
+    +register_user()
+    +authenticate_user()
+    +create_access_token()
+    +get_current_user()
   }
-  class HomePage {
-    -products: Product[]
-    -trackings: Tracking[]
-    +fetchData()
-    +handleTrackProduct()
+
+  class ProductService {
+    +create_product()
+    +create_product_from_scraped_url()
+    +create_products_from_category_selection()
+    +get_user_products()
+    +get_product_by_id()
+    +check_product_price()
+    +delete_product()
   }
-  class ProductPage {
-    -product: Product
-    -prices: Price[]
-    +handleToggleTracking()
-    +handleRefresh()
+
+  class ScraperService {
+    +scrape_url()
+    +scrape_category()
+    +scrape()
+  }
+
+  class TrackingService {
+    +get_user_tracking()
+    +update_tracking_active()
+    +update_tracking_target_price()
+    +delete_tracking()
+  }
+
+  class NotificationService {
+    +maybe_notify_price_drop()
   }
 }
 
-package "Components" {
-  class SearchSection {
-    +url: string
-    +category: string
-    +handleTrackProduct()
+package "Scraper Layer" {
+  class UrlProductScraper {
+    +scrape_product_data()
+    +get_site_key()
   }
-  class Dashboard {
-    +activeProducts: Product[]
-    +inactiveProducts: Product[]
-  }
-  class ProductCard {
-    +product: Product
-    +price: number
-    +onRefresh()
-    +onDelete()
-  }
-  class CandidateSelection {
-    +candidates: ScrapedItem[]
-    +onTrackSelected()
-  }
-  class PriceChart {
-    +prices: Price[]
+
+  class CategoryScraper {
+    +scrape()
   }
 }
 
-package "API" {
-  class APIClient << (S,#FF7700) Singleton >> {
-    +get(url: string)
-    +post(url: string, data: any)
-    +patch(url: string, data: any)
-    +delete(url: string)
+package "Domain Models" {
+  class User {
+    +id: int
+    +email: str
+    +password_hash: str
+    +locale: str?
+    +created_at: datetime
+  }
+
+  class Product {
+    +id: int
+    +name: str?
+    +url: str?
+    +category: str?
+    +image_url: str?
+    +created_at: datetime
+  }
+
+  class Tracking {
+    +id: int
+    +user_id: int
+    +product_id: int
+    +is_active: bool
+    +source: str?
+    +target_price: float?
+    +created_at: datetime
+  }
+
+  class PriceEntry {
+    +id: int
+    +product_id: int
+    +price: float
+    +created_at: datetime
+  }
+
+  class NotificationLog {
+    +id: int
+    +tracking_id: int
+    +price_entry_id: int?
+    +channel: str
+    +recipient: str
+    +notified_price: float
+    +target_price: float
+    +notified_at: datetime
   }
 }
 
-package "Types" {
-  interface Product {
-    +id: number
-    +name: string
-    +url: string
-    +image_url: string
-  }
-  interface Tracking {
-    +id: number
-    +product_id: number
-    +is_active: boolean
-    +target_price: number | null
-  }
-  interface Price {
-    +id: number
-    +price: number
-    +checked_at: string
-  }
-}
+AuthRouter ..> AuthService
+ProductsRouter ..> ProductService
+ScraperRouter ..> ScraperService
+ScraperRouter ..> ProductService
+TrackingRouter ..> TrackingService
 
-HomePage *-- SearchSection
-HomePage *-- Dashboard
-HomePage *-- CandidateSelection
-Dashboard "1" *-- "many" ProductCard
-ProductPage *-- PriceChart
-LoginPage ..> AuthContext : uses
-HomePage ..> APIClient : uses
-ProductPage ..> APIClient : uses
-ProductCard -- Product
-Tracking -- Product
-Price -- Product
+ProductService ..> ScraperService
+ProductService ..> NotificationService
+ScraperService ..> UrlProductScraper
+ScraperService ..> CategoryScraper
+
+AuthService ..> User
+ProductService ..> User
+ProductService ..> Product
+ProductService ..> Tracking
+ProductService ..> PriceEntry
+NotificationService ..> NotificationLog
+NotificationService ..> Tracking
+NotificationService ..> Product
+NotificationService ..> PriceEntry
+
+User "1" -- "0..*" Tracking
+Product "1" -- "0..*" Tracking
+Product "1" -- "0..*" PriceEntry
+Tracking "1" -- "0..*" NotificationLog
+PriceEntry "1" -- "0..*" NotificationLog
 
 @enduml

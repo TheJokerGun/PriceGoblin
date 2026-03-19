@@ -1,27 +1,42 @@
-@startuml Activity Diagram
+@startuml ActivityDiagram
 start
-:User enters search input;
-if (Input is URL?) then (yes)
-  :Call POST /scrape/url;
-  :Backend scraps product data;
-  :Display search success alert;
-  :Navigate to Watchlist;
-else (no)
-  :User selects Category;
-  :Call POST /scrape/category;
-  :Backend finds product candidates;
-  if (Candidates found?) then (yes)
-    :Display CandidateSelection view;
-    :User selects one or more candidates;
-    :User clicks "Track Selected";
-    :Call POST /products/bulk;
-    :Display success alert;
-    :Navigate to Watchlist;
+:User logs in;
+if (Track by URL?) then (yes)
+  :Submit POST /api/products with URL;
+  :Backend validates input;
+  :Backend tries URL scrape for metadata/price;
+  if (Scrape succeeds?) then (yes)
+    :Create or reuse Product;
+    :Create or reactivate Tracking;
+    :Seed initial PriceEntry if needed;
   else (no)
-    :Display "No products found" error;
+    :Fallback to user-provided fields;
+    :Create Product + Tracking without scraped price;
   endif
+else (no)
+  :Submit POST /api/scrape/category;
+  :Backend returns candidate products;
+  :User selects candidates;
+  :Submit POST /api/products/bulk;
+  :Create/reuse Product + Tracking per selection;
+  :Seed first price when candidate includes valid price;
 endif
-:App re-fetches products & trackings;
-:Update Dashboard;
+
+:Show tracked products in dashboard;
+:User triggers POST /api/products/{id}/check-price;
+:Backend stores new PriceEntry;
+if (Target price reached AND tracking active?) then (yes)
+  :Evaluate cooldown + epsilon;
+  if (Allowed to notify?) then (yes)
+    :Send email and/or Teams webhook;
+    :Store NotificationLog;
+  else (no)
+    :Skip notification;
+  endif
+else (no)
+  :No notification action;
+endif
+
+:User may pause/resume tracking or set target price;
 stop
 @enduml

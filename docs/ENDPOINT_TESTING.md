@@ -152,3 +152,15 @@ curl -s -X POST "$BASE_URL/api/scrape/category" \
 - Protected routes always need a bearer token.
 - In Swagger, first login via `/api/auth/login`, then paste `access_token` in Authorize.
 - If your local user id is `1`, you still authenticate by email/password, not directly by id.
+
+## 5) Automated Backend Unit Tests
+
+Run backend unit tests with protocol logging:
+
+```bash
+uv run python scripts/testing/run_backend_tests.py
+```
+
+The protocol report is written to:
+- `docs/test_protocols/backend_test_protocol_latest.md`
+- `docs/test_protocols/backend_test_protocol_YYYY-MM-DD.md`
