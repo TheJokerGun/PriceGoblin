@@ -47,11 +47,13 @@ SITE_CONFIGS: dict[str, dict[str, list[str]]] = {
     "alternate": {
         "title_selectors": ["meta[property='og:title']", "h1", "title"],
         "price_selectors": [
+            ".campaign-timer-price-section .price",
+            ".campaign-timer-price-section [class*='price']",
             "[data-testid='price']",
-            ".price",
             ".product-price",
             "[itemprop='price']",
             "meta[itemprop='price']",
+            ".price",
         ],
         "image_selectors": [
             "meta[property='og:image']",
@@ -604,7 +606,9 @@ def scrape_with_bs4(url: str, locale: str | None = None):
     site_key = get_site_key(url)
     site_cfg = SITE_CONFIGS.get(site_key or "", {})
     title_selectors = site_cfg.get("title_selectors", []) + GENERIC_TITLE_SELECTORS
-    price_selectors = site_cfg.get("price_selectors", []) + GENERIC_PRICE_SELECTORS
+    price_selectors = site_cfg.get("price_selectors", [])
+    if site_key != "alternate":
+        price_selectors = price_selectors + GENERIC_PRICE_SELECTORS
     image_selectors = site_cfg.get("image_selectors", []) + GENERIC_IMAGE_SELECTORS
 
     headers = _build_headers(locale)
@@ -676,7 +680,9 @@ def scrape_with_playwright(url: str, locale: str | None = None):
     site_key = get_site_key(url)
     site_cfg = SITE_CONFIGS.get(site_key or "", {})
     title_selectors = site_cfg.get("title_selectors", []) + GENERIC_TITLE_SELECTORS
-    price_selectors = site_cfg.get("price_selectors", []) + GENERIC_PRICE_SELECTORS
+    price_selectors = site_cfg.get("price_selectors", [])
+    if site_key != "alternate":
+        price_selectors = price_selectors + GENERIC_PRICE_SELECTORS
     image_selectors = site_cfg.get("image_selectors", []) + GENERIC_IMAGE_SELECTORS
     headers = _build_headers(locale)
     resolved_locale = resolve_locale(locale)

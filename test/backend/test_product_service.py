@@ -141,10 +141,8 @@ class ProductServiceTests(DatabaseTestCase):
         )
 
     @patch("src.backend.services.product_service.notification_service.maybe_notify_price_drop")
-    @patch("src.backend.services.product_service.random.uniform", return_value=42.424)
-    def test_check_product_price_uses_fallback_when_scrape_missing(
+    def test_check_product_price_reuses_latest_when_scrape_missing(
         self,
-        random_uniform_mock,
         notify_mock,
     ) -> None:
         user = self._create_user("eve@example.com")
@@ -161,13 +159,50 @@ class ProductServiceTests(DatabaseTestCase):
             ),
         )
 
+        latest = PriceEntry(product_id=product.id, price=42.42)
+        self.db.add(latest)
+        self.db.commit()
+        self.db.refresh(latest)
+
         entry = product_service.check_product_price(self.db, user.id, product.id)
 
         self.assertIsNotNone(entry)
         assert entry is not None
         self.assertEqual(entry.price, 42.42)
-        random_uniform_mock.assert_called_once_with(10, 500)
-        notify_mock.assert_called_once()
+        self.assertEqual(entry.id, latest.id)
+        self.assertEqual(
+            self.db.query(PriceEntry).filter(PriceEntry.product_id == product.id).count(),
+            1,
+        )
+        notify_mock.assert_not_called()
+
+    @patch("src.backend.services.product_service.notification_service.maybe_notify_price_drop")
+    def test_check_product_price_returns_none_when_no_scrape_and_no_history(
+        self,
+        notify_mock,
+    ) -> None:
+        user = self._create_user("frank@example.com")
+        product = product_service.create_product(
+            self.db,
+            user.id,
+            ProductCreate(
+                name="No URL Product",
+                url=None,
+                category="general",
+                image_url=None,
+                source=None,
+                target_price=100.0,
+            ),
+        )
+
+        entry = product_service.check_product_price(self.db, user.id, product.id)
+
+        self.assertIsNone(entry)
+        self.assertEqual(
+            self.db.query(PriceEntry).filter(PriceEntry.product_id == product.id).count(),
+            0,
+        )
+        notify_mock.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -1182,20 +1182,13 @@ class CategoryScraper:
                     price_node = offer_node.select_one(".offers-price")
                     price_text = price_node.get_text(" ", strip=True) if price_node else None
                     price = _extract_price_value(price_text)
-                    redirect_url = (offer_node.get("href") or "").strip() or game_url
-                    if not redirect_url.startswith("http"):
-                        redirect_url = urljoin(game_url, redirect_url)
                     if price is None:
                         continue
                     normalized_price: str | float = "Free" if is_free_price_text(price_text) else price
                     page_offers.append(
                         {
-                            "name": game_title,
                             "price": normalized_price,
-                            "image_url": image_url,
-                            "source": merchant,
-                            "url": redirect_url,
-                            "relevance_score": score,
+                            "merchant": merchant,
                         }
                     )
 
@@ -1203,7 +1196,18 @@ class CategoryScraper:
                     continue
 
                 page_offers.sort(key=lambda item: _price_sort_value(item.get("price")))
-                offers.append(page_offers[0])
+                best_offer = page_offers[0]
+                offers.append(
+                    {
+                        "name": game_title,
+                        "price": best_offer["price"],
+                        "image_url": image_url,
+                        "source": best_offer["merchant"],
+                        # Use the comparison page URL so refresh scraping can re-evaluate market prices.
+                        "url": game_url,
+                        "relevance_score": score,
+                    }
+                )
 
             offers.sort(
                 key=lambda item: (

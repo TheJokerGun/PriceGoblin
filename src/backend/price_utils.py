@@ -47,7 +47,7 @@ def extract_price_value(value: str | float | int | None) -> float | None:
     if is_free_price_text(value):
         return 0.0
 
-    match = re.search(r"(\d{1,3}(?:[.,\s]\d{3})*[.,]\d{2}|\d+[.,]\d{2})", value)
+    match = re.search(r"(\d{1,3}(?:[.,\s]\d{3})*[.,]\d{1,2}|\d+[.,]\d{1,2})", value)
     if not match:
         # Fallback for integer-like prices (often in JSON-LD)
         compact = re.sub(r"[\\s,\\.]", "", value)
@@ -66,10 +66,18 @@ def extract_price_value(value: str | float | int | None) -> float | None:
             normalized = raw.replace(",", "")
     elif "," in raw:
         left, right = raw.rsplit(",", 1)
-        normalized = f"{left.replace(',', '')}.{right}" if len(right) == 2 else raw.replace(",", "")
+        normalized = (
+            f"{left.replace(',', '')}.{right}"
+            if len(right) in (1, 2)
+            else raw.replace(",", "")
+        )
     elif "." in raw:
         left, right = raw.rsplit(".", 1)
-        normalized = f"{left}.{right}" if len(right) == 2 else raw.replace(".", "")
+        normalized = (
+            f"{left.replace('.', '')}.{right}"
+            if len(right) in (1, 2)
+            else raw.replace(".", "")
+        )
     else:
         normalized = raw
     try:

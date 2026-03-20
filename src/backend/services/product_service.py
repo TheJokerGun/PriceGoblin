@@ -1,5 +1,4 @@
 import logging
-import random
 from datetime import datetime, timezone
 from typing import List
 from urllib.parse import urlparse
@@ -415,12 +414,31 @@ def check_product_price(
         if scraped_data and isinstance(scraped_data.get("price"), (int, float)):
             scraped_price = float(scraped_data["price"])
 
-    # Keep a deterministic fallback flow for unsupported/blocked scrapes in development.
-    price = scraped_price if scraped_price is not None else round(random.uniform(10, 500), 2)
+    if scraped_price is None:
+        latest_entry = get_latest_product_price(db, product.id)
+        if latest_entry is not None:
+            log_event(
+                logger,
+                logging.INFO,
+                "product.check_price.scrape_missing_using_latest",
+                product_id=product.id,
+                url=product.url,
+                latest_price=latest_entry.price,
+            )
+            return latest_entry
+
+        log_event(
+            logger,
+            logging.WARNING,
+            "product.check_price.scrape_missing_no_history",
+            product_id=product.id,
+            url=product.url,
+        )
+        return None
 
     entry = PriceEntry(
         product_id=product.id,
-        price=price,
+        price=scraped_price,
     )
 
     db.add(entry)
