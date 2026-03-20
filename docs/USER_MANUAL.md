@@ -30,8 +30,7 @@ You can:
 2. Register a new account or log in with an existing account.
 3. After successful login, you are redirected to the dashboard.
 
-Screenshot placeholder:
-- `docs/screenshots/user-manual/01-login-page.png`
+![Login Page](./screenshots/user-manual/01-login-page.png)
 
 ## 4) Dashboard Overview
 
@@ -42,8 +41,7 @@ On the dashboard, you can:
 - View active and paused tracked items.
 - Refresh, pause/resume, or delete tracking from product cards.
 
-Screenshot placeholder:
-- `docs/screenshots/user-manual/02-dashboard-overview.png`
+![Dashboard Overview](./screenshots/user-manual/02-dashboard-overview.png)
 
 ## 5) Two Ways to Track Products
 
@@ -53,8 +51,7 @@ Screenshot placeholder:
 2. Click **Track Product**.
 3. PriceGoblin will try to scrape product details and add the item to your dashboard.
 
-Screenshot placeholder:
-- `docs/screenshots/user-manual/03-track-by-url.png`
+![Track by URL](./screenshots/user-manual/03-track-by-url.png)
 
 ### B) Track by Name + Category (Candidate Selection)
 
@@ -65,9 +62,8 @@ Screenshot placeholder:
 5. Select one or more items.
 6. Click **Track Selected Items**.
 
-Screenshot placeholders:
-- `docs/screenshots/user-manual/04-category-search-results.png`
-- `docs/screenshots/user-manual/05-track-selected-items.png`
+![Category Search Results](./screenshots/user-manual/04-category-search-results.png)
+![Track Selected Items](./screenshots/user-manual/05-track-selected-items.png)
 
 ## 6) Product Card Actions (Dashboard)
 
@@ -77,8 +73,7 @@ Each tracked item card supports:
 - **Delete**: remove tracking entry.
 - **Open Details**: click card to open product detail page.
 
-Screenshot placeholder:
-- `docs/screenshots/user-manual/06-product-card-actions.png`
+![Product Card Actions](./screenshots/user-manual/06-product-card-actions.png)
 
 ## 7) Product Detail Page
 
@@ -90,9 +85,7 @@ On the product details page you can:
 - Delete tracking.
 - Set, change, or remove a target price.
 
-Screenshot placeholders:
-- `docs/screenshots/user-manual/07-product-details-page.png`
-- `docs/screenshots/user-manual/08-price-chart-and-target-price.png`
+![Price Chart and Target Price](./screenshots/user-manual/08-price-chart-and-target-price.png)
 
 ## 8) Target Price and Notifications
 
@@ -101,8 +94,7 @@ When you set a target price:
 - If notification channels are configured, alerts can be sent (for example email/Teams).
 - Cooldown logic may prevent repeated alerts within a short period.
 
-Screenshot placeholder:
-- `docs/screenshots/user-manual/09-target-price-notification.png`
+![Target Price Notification](./screenshots/user-manual/09-target-price-notification.png)
 
 ## 9) Troubleshooting
 
@@ -129,5 +121,3 @@ Screenshot placeholder:
 5. Set target prices and react to alerts.
 
 ---
-
-If you are preparing a report/submission, insert the screenshots in the placeholder file names listed above.

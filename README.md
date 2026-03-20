@@ -8,6 +8,12 @@ Price Goblin is a unified price-watching and deal-tracking project that aggregat
 - Backend automated tests + protocol logging: `docs/BACKEND_AUTOMATED_TESTING.md`
 - User manual: `docs/USER_MANUAL.md`
 
+## Starting the Backend
+From the project root folder run `uv sync` to setup the environment. Then run `uv run uvicorn src.backend.main:app --reload --port 8000` to start the backend.
+
+## Starting the Frontend
+From the project `/src` folder run `npm install` to setup the environment. Then from the `/src/frontend` folder run `npm run dev -- --host` to start the frontend.
+
 ## Scraper Debugging
 Use this when validating selectors against a new website or troubleshooting scraper failures.
 

@@ -154,7 +154,9 @@ const LoginPage = () => {
               "The best price is the one you track."
             </p>
             <div className="flex items-center justify-center gap-4 dark:text-gray-500 text-gray-400">
-              <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><LuGithub size={20} /></button>
+              <button
+                onClick={() => window.open("https://github.com/TheJokerGun/PriceGoblin", "_blank")}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><LuGithub size={20} /></button>
             </div>
           </div>
         </div>
