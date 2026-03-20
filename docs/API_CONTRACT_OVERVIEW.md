@@ -506,14 +506,3 @@ Errors:
 #### `POST /api/scrape`
 Legacy combined endpoint (backward-compatible).  
 Prefer `/api/scrape/url` and `/api/scrape/category` for new frontend flow.
-
-Auth required.
-
-## Notes for Frontend
-- Recommended games/category flow:
-  1. Call `POST /api/scrape/category` with `{category,name,limit}`.
-  2. Show candidates (`name`, `price`, `source`, `url`) to user.
-  3. On selection, call `POST /api/products/bulk` with selected entries only (optional `target_price` per item).
-  4. Use `GET /api/tracking` to show tracked state, source, active toggles, and target price.
-- Use `GET /api/products/{product_id}/current-price` to show the latest known value without triggering a new scrape.
-- Use `POST /api/products/{product_id}/check-price` only when you intentionally want a fresh fetch + DB write.
