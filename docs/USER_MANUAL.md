@@ -85,7 +85,6 @@ On the product details page you can:
 - Delete tracking.
 - Set, change, or remove a target price.
 
-![Product Details Page](./screenshots/user-manual/07-product-details-page.png)
 ![Price Chart and Target Price](./screenshots/user-manual/08-price-chart-and-target-price.png)
 
 ## 8) Target Price and Notifications

@@ -26,7 +26,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ prices }) => {
           </div>
         </div>
         
-        <div className="flex-1 min-h-[400px]">
+        <div className="flex-1 min-h-100">
           {prices.length > 1 ? (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={prices}>
@@ -39,6 +39,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ prices }) => {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                 <XAxis 
                   dataKey="date" 
+                  interval={0}
                   stroke="var(--chart-text)" 
                   fontSize={10} 
                   fontWeight="bold"
@@ -55,6 +56,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ prices }) => {
                   tickFormatter={(val) => formatCurrency(val)}
                 />
                 <Tooltip
+                  shared={false}
                   contentStyle={{
                     backgroundColor: "var(--tooltip-bg)",
                     border: "1px solid var(--tooltip-border)",
@@ -72,6 +74,8 @@ const PriceChart: React.FC<PriceChartProps> = ({ prices }) => {
                   strokeWidth={4}
                   fillOpacity={1}
                   fill="url(#colorPrice)"
+                  dot={{ r: 4, fill: "#3b82f6", strokeWidth: 2, fillOpacity: 1 }} 
+                  activeDot={{ r: 6, strokeWidth: 0 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
