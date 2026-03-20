@@ -1,6 +1,6 @@
 # Endpoint Testing Guide (Without Frontend)
 
-This guide lets you test your backend directly via Swagger or curl.
+Tests the backend directly via Swagger or curl.
 
 ## 1) Swagger UI (Recommended for manual checks)
 
