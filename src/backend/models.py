@@ -1,0 +1,89 @@
+from sqlalchemy import String, ForeignKey, Float, DateTime, Boolean
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import datetime, timezone
+from .database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    locale: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    trackings: Mapped[list["Tracking"]] = relationship(back_populates="user")
+
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str | None] = mapped_column(String, nullable=True)
+    url: Mapped[str | None] = mapped_column(String, nullable=True)
+    category: Mapped[str | None] = mapped_column(String, nullable=True)
+    image_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    prices: Mapped[list["PriceEntry"]] = relationship(back_populates="product")
+    trackings: Mapped[list["Tracking"]] = relationship(back_populates="product")
+
+
+class PriceEntry(Base):
+    __tablename__ = "price_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
+    price: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    product: Mapped["Product"] = relationship(back_populates="prices")
+    notifications: Mapped[list["NotificationLog"]] = relationship(back_populates="price_entry")
+
+
+class Tracking(Base):
+    __tablename__ = "tracking"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    source: Mapped[str | None] = mapped_column(String, nullable=True)
+    target_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    user: Mapped["User"] = relationship(back_populates="trackings")
+    product: Mapped["Product"] = relationship(back_populates="trackings")
+    notifications: Mapped[list["NotificationLog"]] = relationship(back_populates="tracking")
+
+
+class NotificationLog(Base):
+    __tablename__ = "notification_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    tracking_id: Mapped[int] = mapped_column(ForeignKey("tracking.id"), index=True)
+    price_entry_id: Mapped[int | None] = mapped_column(ForeignKey("price_entries.id"), nullable=True)
+    channel: Mapped[str] = mapped_column(String, nullable=False)
+    recipient: Mapped[str] = mapped_column(String, nullable=False)
+    notified_price: Mapped[float] = mapped_column(Float)
+    target_price: Mapped[float] = mapped_column(Float)
+    notified_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    tracking: Mapped["Tracking"] = relationship(back_populates="notifications")
+    price_entry: Mapped["PriceEntry"] = relationship(back_populates="notifications")

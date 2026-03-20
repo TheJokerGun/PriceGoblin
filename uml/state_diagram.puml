@@ -1,0 +1,33 @@
+@startuml StateDiagram
+title PriceGoblin Tracking Lifecycle
+top to bottom direction
+skinparam shadowing false
+
+[*] --> Untracked
+Untracked --> Active : create
+
+state Active {
+  [*] --> Monitoring
+
+  Monitoring --> Checking : check price
+  Checking --> Monitoring : no new price
+  Checking --> PriceUpdated : price saved
+
+  PriceUpdated --> NotifyCheck : target reached
+  PriceUpdated --> Monitoring : continue
+
+  NotifyCheck --> Notified : send ok
+  NotifyCheck --> Monitoring : skip
+  Notified --> Monitoring
+}
+
+Active --> Paused : pause
+Paused --> Active : resume
+
+Active --> Active : set target
+Paused --> Paused : set target
+
+Active --> Removed : delete
+Paused --> Removed : delete
+Removed --> [*]
+@enduml

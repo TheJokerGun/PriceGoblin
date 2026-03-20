@@ -1,0 +1,158 @@
+@startuml ClassDiagram
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+package "API Layer" {
+  class AuthRouter <<FastAPI Router>> {
+    +register()
+    +login()
+    +read_current_user()
+  }
+
+  class ProductsRouter <<FastAPI Router>> {
+    +create_product()
+    +create_products_bulk_from_category()
+    +get_products()
+    +get_product()
+    +delete_product()
+    +get_product_prices()
+    +get_product_current_price()
+    +check_product_price()
+  }
+
+  class ScraperRouter <<FastAPI Router>> {
+    +scrape_url()
+    +scrape_category()
+    +scrape()
+  }
+
+  class TrackingRouter <<FastAPI Router>> {
+    +get_tracking()
+    +update_tracking_active()
+    +update_tracking_target_price()
+    +delete_tracking()
+  }
+}
+
+package "Service Layer" {
+  class AuthService {
+    +register_user()
+    +authenticate_user()
+    +create_access_token()
+    +get_current_user()
+  }
+
+  class ProductService {
+    +create_product()
+    +create_product_from_scraped_url()
+    +create_products_from_category_selection()
+    +get_user_products()
+    +get_product_by_id()
+    +check_product_price()
+    +delete_product()
+  }
+
+  class ScraperService {
+    +scrape_url()
+    +scrape_category()
+    +scrape()
+  }
+
+  class TrackingService {
+    +get_user_tracking()
+    +update_tracking_active()
+    +update_tracking_target_price()
+    +delete_tracking()
+  }
+
+  class NotificationService {
+    +maybe_notify_price_drop()
+  }
+}
+
+package "Scraper Layer" {
+  class UrlProductScraper {
+    +scrape_product_data()
+    +get_site_key()
+  }
+
+  class CategoryScraper {
+    +scrape()
+  }
+}
+
+package "Domain Models" {
+  class User {
+    +id: int
+    +email: str
+    +password_hash: str
+    +locale: str [0..1]
+    +created_at: datetime
+  }
+
+  class Product {
+    +id: int
+    +name: str [0..1]
+    +url: str [0..1]
+    +category: str [0..1]
+    +image_url: str [0..1]
+    +created_at: datetime
+  }
+
+  class Tracking {
+    +id: int
+    +user_id: int
+    +product_id: int
+    +is_active: bool
+    +source: str [0..1]
+    +target_price: float [0..1]
+    +created_at: datetime
+  }
+
+  class PriceEntry {
+    +id: int
+    +product_id: int
+    +price: float
+    +created_at: datetime
+  }
+
+  class NotificationLog {
+    +id: int
+    +tracking_id: int
+    +price_entry_id: int [0..1]
+    +channel: str
+    +recipient: str
+    +notified_price: float
+    +target_price: float
+    +notified_at: datetime
+  }
+}
+
+AuthRouter ..> AuthService
+ProductsRouter ..> ProductService
+ScraperRouter ..> ScraperService
+ScraperRouter ..> ProductService
+TrackingRouter ..> TrackingService
+
+ProductService ..> ScraperService
+ProductService ..> NotificationService
+ScraperService ..> UrlProductScraper
+ScraperService ..> CategoryScraper
+
+AuthService ..> User
+ProductService ..> User
+ProductService ..> Product
+ProductService ..> Tracking
+ProductService ..> PriceEntry
+NotificationService ..> NotificationLog
+NotificationService ..> Tracking
+NotificationService ..> Product
+NotificationService ..> PriceEntry
+
+User "1" -- "0..*" Tracking
+Product "1" -- "0..*" Tracking
+Product "1" -- "0..*" PriceEntry
+Tracking "1" -- "0..*" NotificationLog
+PriceEntry "1" -- "0..*" NotificationLog
+
+@enduml

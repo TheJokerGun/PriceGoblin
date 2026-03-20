@@ -1,0 +1,39 @@
+@startuml UseCaseDiagram
+left to right direction
+
+actor "User" as User
+actor "Email Provider" as Email
+actor "Teams Webhook" as Teams
+
+rectangle "PriceGoblin System" {
+  usecase "Register / Login" as UC_Login
+  usecase "Track Product by URL" as UC_TrackUrl
+  usecase "Search Category Candidates" as UC_ScrapeCategory
+  usecase "Track Selected Candidates (Bulk)" as UC_BulkTrack
+  usecase "View Tracked Products" as UC_ViewProducts
+  usecase "View Product Price History" as UC_ViewHistory
+  usecase "Check Current Price" as UC_CheckPrice
+  usecase "Pause / Resume Tracking" as UC_ToggleActive
+  usecase "Set Target Price" as UC_SetTarget
+  usecase "Delete Tracking" as UC_Delete
+  usecase "Send Price Drop Notification" as UC_Notify
+}
+
+User --> UC_Login
+User --> UC_TrackUrl
+User --> UC_ScrapeCategory
+User --> UC_BulkTrack
+User --> UC_ViewProducts
+User --> UC_ViewHistory
+User --> UC_CheckPrice
+User --> UC_ToggleActive
+User --> UC_SetTarget
+User --> UC_Delete
+
+UC_TrackUrl ..> UC_CheckPrice : <<include>>
+UC_BulkTrack ..> UC_ViewProducts : <<include>>
+UC_CheckPrice ..> UC_Notify : <<extend>>
+
+Email --> UC_Notify
+Teams --> UC_Notify
+@enduml

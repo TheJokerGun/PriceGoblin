@@ -343,3 +343,11 @@ sketch
 [Ss]cripts
 pyvenv.cfg
 pip-selfcheck.json
+
+# Keep repository test scripts versioned.
+!test/scripts/
+!test/scripts/**
+
+# temporary debug files
+*.log
+**/tmp/

@@ -1,0 +1,43 @@
+@startuml SequenceDiagram
+actor User
+participant "Frontend (HomePage)" as Frontend
+participant "API Client" as API
+participant "Products Router" as ProductsRoute
+participant "Product Service" as ProductService
+participant "URL Product Scraper" as UrlScraper
+participant "Notification Service" as NotificationService
+database "SQLite DB" as DB
+participant "Email Provider" as Email
+participant "Teams Webhook" as Teams
+
+User -> Frontend: Click "Check Price"
+Frontend -> API: POST /api/products/{id}/check-price
+API -> ProductsRoute: Authorized request
+ProductsRoute -> ProductService: check_product_price(user_id, product_id)
+
+ProductService -> DB: Load product + tracking context
+DB --> ProductService: Product + Tracking
+
+alt Product has URL
+  ProductService -> UrlScraper: scrape_product_data(url, locale)
+  UrlScraper --> ProductService: price (or none)
+else No URL
+  ProductService -> ProductService: use fallback price logic
+end
+
+ProductService -> DB: Insert PriceEntry
+ProductService -> NotificationService: maybe_notify_price_drop(...)
+
+alt Target reached and notification allowed
+  NotificationService -> Email: send email alert
+  NotificationService -> Teams: send webhook card
+  NotificationService -> DB: Insert NotificationLog entries
+else Not eligible (inactive / no target / cooldown)
+  NotificationService -> NotificationService: skip notification
+end
+
+ProductService --> ProductsRoute: PriceEntry
+ProductsRoute --> API: PriceResponse
+API --> Frontend: 200 OK + latest price
+Frontend --> User: Updated price shown
+@enduml
