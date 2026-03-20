@@ -1,6 +1,6 @@
 # Backend Automated Testing
 
-This project includes backend-focused unit tests and a test protocol generator for school documentation.
+This project includes backend-focused unit tests and a test protocol generator.
 
 ## What Is Covered
 
