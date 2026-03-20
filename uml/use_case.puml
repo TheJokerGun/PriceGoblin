@@ -2,7 +2,6 @@
 left to right direction
 
 actor "User" as User
-actor "Marketplace Website" as Marketplace
 actor "Email Provider" as Email
 actor "Teams Webhook" as Teams
 
@@ -35,9 +34,6 @@ UC_TrackUrl ..> UC_CheckPrice : <<include>>
 UC_BulkTrack ..> UC_ViewProducts : <<include>>
 UC_CheckPrice ..> UC_Notify : <<extend>>
 
-Marketplace --> UC_TrackUrl
-Marketplace --> UC_ScrapeCategory
-Marketplace --> UC_CheckPrice
 Email --> UC_Notify
 Teams --> UC_Notify
 @enduml

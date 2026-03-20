@@ -1,21 +1,33 @@
 @startuml StateDiagram
-[*] --> Active : Tracking created
+title PriceGoblin Tracking Lifecycle
+top to bottom direction
+skinparam shadowing false
+
+[*] --> Untracked
+Untracked --> Active : create
 
 state Active {
   [*] --> Monitoring
-  Monitoring --> PriceChecked : check-price requested
-  PriceChecked --> Monitoring : price stored
 
-  PriceChecked --> TargetReached : price <= target_price
-  TargetReached --> NotificationCooldown : notification sent
-  NotificationCooldown --> Monitoring : cooldown elapsed
-  TargetReached --> Monitoring : notification skipped (cooldown/epsilon)
+  Monitoring --> Checking : check price
+  Checking --> Monitoring : no new price
+  Checking --> PriceUpdated : price saved
+
+  PriceUpdated --> NotifyCheck : target reached
+  PriceUpdated --> Monitoring : continue
+
+  NotifyCheck --> Notified : send ok
+  NotifyCheck --> Monitoring : skip
+  Notified --> Monitoring
 }
 
-Active --> Paused : PATCH /api/tracking/{id}/active (false)
-Paused --> Active : PATCH /api/tracking/{id}/active (true)
+Active --> Paused : pause
+Paused --> Active : resume
 
-Active --> Removed : DELETE /api/products/{id}
-Paused --> Removed : DELETE /api/products/{id}
+Active --> Active : set target
+Paused --> Paused : set target
+
+Active --> Removed : delete
+Paused --> Removed : delete
 Removed --> [*]
 @enduml

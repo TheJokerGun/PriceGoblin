@@ -86,16 +86,16 @@ package "Domain Models" {
     +id: int
     +email: str
     +password_hash: str
-    +locale: str?
+    +locale: str [0..1]
     +created_at: datetime
   }
 
   class Product {
     +id: int
-    +name: str?
-    +url: str?
-    +category: str?
-    +image_url: str?
+    +name: str [0..1]
+    +url: str [0..1]
+    +category: str [0..1]
+    +image_url: str [0..1]
     +created_at: datetime
   }
 
@@ -104,8 +104,8 @@ package "Domain Models" {
     +user_id: int
     +product_id: int
     +is_active: bool
-    +source: str?
-    +target_price: float?
+    +source: str [0..1]
+    +target_price: float [0..1]
     +created_at: datetime
   }
 
@@ -119,7 +119,7 @@ package "Domain Models" {
   class NotificationLog {
     +id: int
     +tracking_id: int
-    +price_entry_id: int?
+    +price_entry_id: int [0..1]
     +channel: str
     +recipient: str
     +notified_price: float
