@@ -158,9 +158,9 @@ curl -s -X POST "$BASE_URL/api/scrape/category" \
 Run backend unit tests with protocol logging:
 
 ```bash
-uv run python scripts/testing/run_backend_tests.py
+uv run python test/scripts/run_backend_tests.py
 ```
 
 The protocol report is written to:
-- `docs/test_protocols/backend_test_protocol_latest.md`
-- `docs/test_protocols/backend_test_protocol_YYYY-MM-DD.md`
+- `test/protocols/backend_test_protocol_latest.md`
+- `test/protocols/backend_test_protocol_YYYY-MM-DD.md`

@@ -18,13 +18,13 @@ This project includes backend-focused unit tests and a test protocol generator f
 From the project root:
 
 ```bash
-uv run python scripts/testing/run_backend_tests.py
+uv run python test/scripts/run_backend_tests.py
 ```
 
 This command runs all backend unit tests and writes protocol reports to:
 
-- `docs/test_protocols/backend_test_protocol_latest.md`
-- `docs/test_protocols/backend_test_protocol_YYYY-MM-DD.md`
+- `test/protocols/backend_test_protocol_latest.md`
+- `test/protocols/backend_test_protocol_YYYY-MM-DD.md`
 
 ## Run Tests (Without Protocol File)
 
